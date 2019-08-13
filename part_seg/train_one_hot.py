@@ -96,7 +96,7 @@ def train():
         with tf.device('/gpu:'+str(GPU_INDEX)):
             pointclouds_pl, labels_pl, cls_labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
             is_training_pl = tf.placeholder(tf.bool, shape=())
-            print is_training_pl
+            print(is_training_pl)
             
             # Note the global_step=batch parameter to minimize. 
             # That tells the optimizer to helpfully increment the 'batch' parameter for you every time it trains.
@@ -104,7 +104,7 @@ def train():
             bn_decay = get_bn_decay(batch)
             tf.summary.scalar('bn_decay', bn_decay)
 
-            print "--- Get model and loss"
+            print("--- Get model and loss")
             # Get model and loss 
             pred, end_points = MODEL.get_model(pointclouds_pl, cls_labels_pl, is_training_pl, bn_decay=bn_decay)
             loss = MODEL.get_loss(pred, labels_pl)
@@ -114,7 +114,7 @@ def train():
             accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE*NUM_POINT)
             tf.summary.scalar('accuracy', accuracy)
 
-            print "--- Get training operator"
+            print("--- Get training operator")
             # Get training operator
             learning_rate = get_learning_rate(batch)
             tf.summary.scalar('learning_rate', learning_rate)
@@ -241,9 +241,9 @@ def eval_one_epoch(sess, ops, test_writer):
     total_correct_class = [0 for _ in range(NUM_CLASSES)]
 
     seg_classes = TEST_DATASET.seg_classes
-    shape_ious = {cat:[] for cat in seg_classes.keys()}
+    shape_ious = {cat:[] for cat in list(seg_classes.keys())}
     seg_label_to_cat = {} # {0:Airplane, 1:Airplane, ...49:Table}
-    for cat in seg_classes.keys():
+    for cat in list(seg_classes.keys()):
         for label in seg_classes[cat]:
             seg_label_to_cat[label] = cat
 
@@ -310,11 +310,11 @@ def eval_one_epoch(sess, ops, test_writer):
             shape_ious[cat].append(np.mean(part_ious))
 
     all_shape_ious = []
-    for cat in shape_ious.keys():
+    for cat in list(shape_ious.keys()):
         for iou in shape_ious[cat]:
             all_shape_ious.append(iou)
         shape_ious[cat] = np.mean(shape_ious[cat])
-    mean_shape_ious = np.mean(shape_ious.values())
+    mean_shape_ious = np.mean(list(shape_ious.values()))
     log_string('eval mean loss: %f' % (loss_sum / float(len(TEST_DATASET)/BATCH_SIZE)))
     log_string('eval accuracy: %f'% (total_correct / float(total_seen)))
     log_string('eval avg class acc: %f' % (np.mean(np.array(total_correct_class)/np.array(total_seen_class,dtype=np.float))))

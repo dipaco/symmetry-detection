@@ -119,8 +119,8 @@ class ModelNetH5Dataset(object):
 
 if __name__=='__main__':
     d = ModelNetH5Dataset('data/modelnet40_ply_hdf5_2048/train_files.txt')
-    print(d.shuffle)
-    print(d.has_next_batch())
+    print((d.shuffle))
+    print((d.has_next_batch()))
     ps_batch, cls_batch = d.next_batch(True)
-    print(ps_batch.shape)
-    print(cls_batch.shape)
+    print((ps_batch.shape))
+    print((cls_batch.shape))
