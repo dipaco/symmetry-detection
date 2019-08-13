@@ -31,7 +31,7 @@ class PartNormalDataset():
             for line in f:
                 ls = line.strip().split()
                 self.cat[ls[0]] = ls[1]
-        self.cat = {k:v for k,v in self.cat.items()}
+        self.cat = {k:v for k,v in list(self.cat.items())}
         #print(self.cat)
             
         self.meta = {}
@@ -56,7 +56,7 @@ class PartNormalDataset():
             elif split=='test':
                 fns = [fn for fn in fns if fn[0:-4] in test_ids]
             else:
-                print('Unknown split: %s. Exiting..'%(split))
+                print(('Unknown split: %s. Exiting..'%(split)))
                 exit(-1)
                 
             #print(os.path.basename(fns))
@@ -70,12 +70,12 @@ class PartNormalDataset():
                 self.datapath.append((item, fn))
             
          
-        self.classes = dict(zip(self.cat, range(len(self.cat))))  
+        self.classes = dict(list(zip(self.cat, list(range(len(self.cat))))))  
         # Mapping from category ('Chair') to a list of int [10,11,12,13] as segmentation labels
         self.seg_classes = {'Earphone': [16, 17, 18], 'Motorbike': [30, 31, 32, 33, 34, 35], 'Rocket': [41, 42, 43], 'Car': [8, 9, 10, 11], 'Laptop': [28, 29], 'Cap': [6, 7], 'Skateboard': [44, 45, 46], 'Mug': [36, 37], 'Guitar': [19, 20, 21], 'Bag': [4, 5], 'Lamp': [24, 25, 26, 27], 'Table': [47, 48, 49], 'Airplane': [0, 1, 2, 3], 'Pistol': [38, 39, 40], 'Chair': [12, 13, 14, 15], 'Knife': [22, 23]}
 
         for cat in sorted(self.seg_classes.keys()):
-            print(cat, self.seg_classes[cat])
+            print((cat, self.seg_classes[cat]))
         
         self.cache = {} # from index to (point_set, cls, seg) tuple
         self.cache_size = 20000
@@ -117,22 +117,22 @@ class PartNormalDataset():
 
 if __name__ == '__main__':
     d = PartNormalDataset(root = '../data/shapenetcore_partanno_segmentation_benchmark_v0_normal', split='trainval', npoints=3000)
-    print(len(d))
+    print((len(d)))
 
     i = 500
     ps, normal, seg = d[i]
-    print d.datapath[i]
-    print np.max(seg), np.min(seg)
-    print(ps.shape, seg.shape, normal.shape)
-    print ps
-    print normal
+    print(d.datapath[i])
+    print(np.max(seg), np.min(seg))
+    print((ps.shape, seg.shape, normal.shape))
+    print(ps)
+    print(normal)
     
     sys.path.append('../utils')
     import show3d_balls
     show3d_balls.showpoints(ps, normal+1, ballradius=8)
 
     d = PartNormalDataset(root = '../data/shapenetcore_partanno_segmentation_benchmark_v0_normal', classification = True)
-    print(len(d))
+    print((len(d)))
     ps, normal, cls = d[0]
-    print(ps.shape, type(ps), cls.shape,type(cls))
+    print((ps.shape, type(ps), cls.shape,type(cls)))
 
