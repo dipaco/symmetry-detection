@@ -35,6 +35,7 @@ parser.add_argument('--optimizer', default='adam', help='adam or momentum [defau
 parser.add_argument('--decay_step', type=int, default=200000, help='Decay step for lr decay [default: 200000]')
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.7]')
 parser.add_argument('--normal', action='store_true', help='Whether to use normal information')
+parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -150,6 +151,17 @@ def train():
         config.log_device_placement = False
         sess = tf.Session(config=config)
 
+        # if a checkpoint exists, restore from the latest checkpoint
+        epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
+        ckpt = tf.train.get_checkpoint_state(os.path.dirname(LOG_DIR))
+        if ckpt and ckpt.model_checkpoint_path:
+            saver.restore(sess, ckpt.model_checkpoint_path)
+            print('restore global_step={}'.format(tf.train.global_step(sess, batch)))
+
+            #cur_epoch = int((tf.train.global_step(sess, batch) * FLAGS.batch_size) / FLAGS.train_size)
+            #print('Restoring on epoch: {} with train set size: {}'.format(cur_epoch, FLAGS.train_size))
+
+
         # Add summary writers
         merged = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'), sess.graph)
@@ -158,6 +170,7 @@ def train():
         # Init variables
         init = tf.global_variables_initializer()
         sess.run(init)
+        cur_epoch = sess.run(epoch_var)
 
         ops = {'pointclouds_pl': pointclouds_pl,
                'labels_pl': labels_pl,
@@ -170,7 +183,7 @@ def train():
                'end_points': end_points}
 
         best_acc = -1
-        for epoch in range(MAX_EPOCH):
+        for epoch in range(cur_epoch, MAX_EPOCH):
             log_string('**** EPOCH %03d ****' % (epoch))
             sys.stdout.flush()
              
@@ -179,6 +192,7 @@ def train():
 
             # Save the variables to disk.
             if epoch % 10 == 0:
+                tf.assign(epoch_var, epoch + 1)
                 save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"), global_step=batch)
                 log_string("Model saved in file: %s" % save_path)
 
