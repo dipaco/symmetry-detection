@@ -89,6 +89,7 @@ else:
 
 # Shapenet official train/test split
 if FLAGS.normal:
+    print('goes here')
     assert(NUM_POINT<=10000)
     DATA_PATH = os.path.join(ROOT_DIR, 'data/modelnet40_normal_resampled')
     TRAIN_DATASET = shapenet_symmetry.ShapeNetSymmetryDataset(root=DATA_PATH, npoints=NUM_POINT, split='train', normal_channel=FLAGS.normal, batch_size=BATCH_SIZE)
