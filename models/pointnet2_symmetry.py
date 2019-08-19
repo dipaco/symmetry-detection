@@ -22,9 +22,9 @@ def get_model(next_element, is_training, bn_decay=None):
     #next_face_normals, next_triangles, point_cloud, next_gt_planes, next_w, next_num_planes, next_filename = next_element
     point_cloud, next_gt_planes, next_w, next_num_planes, next_filename = next_element
 
-    print(tf.shape(point_cloud))
-    batch_size = tf.shape(point_cloud)[0]
-    num_point = tf.shape(point_cloud)[1]
+    print(point_cloud.get_shape())
+    batch_size = point_cloud.get_shape()[0].value
+    num_point = point_cloud.get_shape()[1].value
     end_points = {}
     l0_xyz = point_cloud
     l0_points = None
