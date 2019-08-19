@@ -12,6 +12,8 @@ import socket
 import importlib
 import os
 import sys
+import time
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = BASE_DIR
 sys.path.append(BASE_DIR)
@@ -68,6 +70,9 @@ HOSTNAME = socket.gethostname()
 
 NUM_CLASSES = 40
 
+TIMEOUT_TERMINATION_SECS = 3600
+script_starting_time = time.time()
+
 # Shapenet official train/test split
 if FLAGS.normal:
     assert(NUM_POINT<=10000)
@@ -109,14 +114,9 @@ def train():
         with tf.device('/gpu:'+str(GPU_INDEX)):
             pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
             is_training_pl = tf.placeholder(tf.bool, shape=())
-            
-            # Note the global_step=batch parameter to minimize. 
-            # That tells the optimizer to helpfully increment the 'batch' parameter
-            # for you every time it trains.
+
             global_step = tf.train.get_or_create_global_step()
-            epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
-            #batch = tf.get_variable('batch', [],
-            #    initializer=tf.constant_initializer(0), trainable=False)
+            epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)   # epoch counter
             bn_decay = get_bn_decay(global_step)
             tf.summary.scalar('bn_decay', bn_decay)
 
@@ -135,8 +135,6 @@ def train():
 
             print("--- Get training operator")
             # Get training operator
-            #learning_rate = get_learning_rate(batch)
-            #tf.summary.scalar('learning_rate', learning_rate)
             if OPTIMIZER == 'momentum':
                 optimizer = tf.train.MomentumOptimizer(FLAGS.learning_rate, momentum=MOMENTUM)
             elif OPTIMIZER == 'adam':
@@ -166,12 +164,6 @@ def train():
             print('restore global_step={}'.format(tf.train.global_step(sess, global_step)))
             print('restoring epoch={}'.format(sess.run(epoch_var)))
 
-            #epoch_var = tf.train.global_step(sess, global_step) * FLAGS.batch_size / FLAGS.train_size
-
-            #cur_epoch = int((tf.train.global_step(sess, batch) * FLAGS.batch_size) / FLAGS.train_size)
-            #print('Restoring on epoch: {} with train set size: {}'.format(cur_epoch, FLAGS.train_size))
-
-
         # Add summary writers
         merged = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'), sess.graph)
@@ -197,15 +189,24 @@ def train():
              
             train_one_epoch(sess, ops, train_writer)
             eval_one_epoch(sess, ops, test_writer)
-            
+
             # increase epoch counter
             increase_epoch = tf.assign(epoch_var, epoch + 1)
             sess.run(increase_epoch)
 
-            # Save the variables to disk.
-            if epoch % 10 == 0:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, 'checkpoint'), global_step=global_step)
-                log_string("Model saved in file: %s" % save_path)
+            # Kills the process after one hour of processing.
+            if time.time() - script_starting_time > TIMEOUT_TERMINATION_SECS:
+                save_progress(global_step, saver, sess)
+                print('Time out termination.')
+                exit()
+
+            elif epoch % 10 == 0:   # Save the variables to disk.
+                save_progress(global_step, saver, sess)
+
+
+def save_progress(global_step, saver, sess):
+    save_path = saver.save(sess, os.path.join(LOG_DIR, 'checkpoint'), global_step=global_step)
+    log_string("Model saved in file: %s" % save_path)
 
 
 def train_one_epoch(sess, ops, train_writer):
