@@ -113,9 +113,10 @@ def train():
             # Note the global_step=batch parameter to minimize. 
             # That tells the optimizer to helpfully increment the 'batch' parameter
             # for you every time it trains.
-            batch = tf.get_variable('batch', [],
-                initializer=tf.constant_initializer(0), trainable=False)
-            bn_decay = get_bn_decay(batch)
+            global_step = tf.train.get_or_create_global_step()
+            #batch = tf.get_variable('batch', [],
+            #    initializer=tf.constant_initializer(0), trainable=False)
+            bn_decay = get_bn_decay(global_step)
             tf.summary.scalar('bn_decay', bn_decay)
 
             # Get model and loss 
@@ -139,7 +140,7 @@ def train():
                 optimizer = tf.train.MomentumOptimizer(FLAGS.learning_rate, momentum=MOMENTUM)
             elif OPTIMIZER == 'adam':
                 optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-            train_op = optimizer.minimize(total_loss, global_step=batch)
+            train_op = optimizer.minimize(total_loss, global_step=global_step)
             
             # Add ops to save and restore all the variables.
             saver = tf.train.Saver(save_relative_paths=True)
@@ -158,7 +159,7 @@ def train():
         if ckpt and ckpt.model_checkpoint_path:
             print('----- restoring model')
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print('restore global_step={}'.format(tf.train.global_step(sess, batch)))
+            print('restore global_step={}'.format(tf.train.global_step(sess, global_step)))
 
             #epoch_var = tf.train.global_step(sess, global_step) * FLAGS.batch_size / FLAGS.train_size
 
