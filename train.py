@@ -184,7 +184,7 @@ def train():
                'loss': total_loss,
                'train_op': train_op,
                'merged': merged,
-               'step': batch,
+               'step': global_step,
                'end_points': end_points}
 
         best_acc = -1
