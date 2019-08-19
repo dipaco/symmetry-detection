@@ -152,6 +152,10 @@ def train():
         config.log_device_placement = False
         sess = tf.Session(config=config)
 
+        # Init variables
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
         # if a checkpoint exists, restore from the latest checkpoint
         epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
         ckpt = tf.train.get_checkpoint_state(os.path.dirname(os.path.join(LOG_DIR, 'checkpoint')))
@@ -172,9 +176,6 @@ def train():
         train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'), sess.graph)
         test_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'test'), sess.graph)
 
-        # Init variables
-        init = tf.global_variables_initializer()
-        sess.run(init)
         cur_epoch = sess.run(epoch_var)
 
         ops = {'pointclouds_pl': pointclouds_pl,
