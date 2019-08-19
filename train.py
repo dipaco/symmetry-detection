@@ -19,10 +19,12 @@ ROOT_DIR = BASE_DIR
 sys.path.append(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
+sys.path.append(os.path.join(ROOT_DIR, 'datasets'))
 import provider
 import tf_util
 import modelnet_dataset
 import modelnet_h5_dataset
+import shapenet_symmetry
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
@@ -73,7 +75,7 @@ NUM_CLASSES = 40
 TIMEOUT_TERMINATION_SECS = 3600
 script_starting_time = time.time()
 
-# Shapenet official train/test split
+'''# Shapenet official train/test split
 if FLAGS.normal:
     assert(NUM_POINT<=10000)
     DATA_PATH = os.path.join(ROOT_DIR, 'data/modelnet40_normal_resampled')
@@ -83,6 +85,14 @@ else:
     assert(NUM_POINT<=2048)
     TRAIN_DATASET = modelnet_h5_dataset.ModelNetH5Dataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/train_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=True)
     TEST_DATASET = modelnet_h5_dataset.ModelNetH5Dataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/test_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=False)
+'''
+
+# Shapenet official train/test split
+if FLAGS.normal:
+    assert(NUM_POINT<=10000)
+    DATA_PATH = os.path.join(ROOT_DIR, 'data/modelnet40_normal_resampled')
+    TRAIN_DATASET = shapenet_symmetry.ShapeNetSymmetryDataset(root=DATA_PATH, npoints=NUM_POINT, split='train', normal_channel=FLAGS.normal, batch_size=BATCH_SIZE)
+    TEST_DATASET = shapenet_symmetry.ShapeNetSymmetryDataset(root=DATA_PATH, npoints=NUM_POINT, split='test', normal_channel=FLAGS.normal, batch_size=BATCH_SIZE)
 
 def log_string(out_str):
     LOG_FOUT.write(out_str+'\n')
