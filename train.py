@@ -164,6 +164,7 @@ def train():
             print('----- restoring model')
             saver.restore(sess, ckpt.model_checkpoint_path)
             print('restore global_step={}'.format(tf.train.global_step(sess, global_step)))
+            print('restoring epoch={}'.format(sess.run(epoch_var)))
 
             #epoch_var = tf.train.global_step(sess, global_step) * FLAGS.batch_size / FLAGS.train_size
 
@@ -177,6 +178,7 @@ def train():
         test_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'test'), sess.graph)
 
         cur_epoch = sess.run(epoch_var)
+        print(cur_epoch)
 
         ops = {'pointclouds_pl': pointclouds_pl,
                'labels_pl': labels_pl,
