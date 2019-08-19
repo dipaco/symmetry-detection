@@ -72,8 +72,9 @@ class Dataset(object):
                                                                             v,
                                                                             [f]])
         # dataset = dataset.batch(1)
-        dataset = dataset.padded_batch(FLAGS.batch_size, ([None, 3], [None, 3, 3], [1024, 3], [3, 3, 3], [3], [], [1]))
-        dataset = dataset.batch(FLAGS.batch_size)
+        #dataset = dataset.padded_batch(FLAGS.batch_size, ([None, 3], [None, 3, 3], [1024, 3], [3, 3, 3], [3], [], [1]))
+        dataset = dataset.padded_batch(FLAGS.batch_size, ([1024, 3], [3, 3, 3], [3], [], [1]))
+        #dataset = dataset.batch(FLAGS.batch_size)
         # dataset = dataset.shard(num_shards, 0)
         # dataset = dataset.apply(tf.data.experimental.filter_for_shard(num_shards, 0))
 
