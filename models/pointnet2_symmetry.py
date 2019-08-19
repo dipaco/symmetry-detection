@@ -28,6 +28,8 @@ def get_model(next_element, is_training, bn_decay=None):
     l0_points = None
     end_points['l0_xyz'] = l0_xyz
 
+    print('got the elements')
+
     # Set abstraction layers
     # Note: When using NCHW for layer 2, we see increased GPU memory usage (in TF1.4).
     # So we only use NCHW for layer 1 until this issue can be resolved.
@@ -44,7 +46,7 @@ def get_model(next_element, is_training, bn_decay=None):
     net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training, scope='dp2')
     net = tf_util.fully_connected(net, 40, activation_fn=None, scope='fc3')
 
-    print('got the elements')
+
 
     return net, end_points
 
