@@ -114,6 +114,7 @@ def train():
             # That tells the optimizer to helpfully increment the 'batch' parameter
             # for you every time it trains.
             global_step = tf.train.get_or_create_global_step()
+            epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
             #batch = tf.get_variable('batch', [],
             #    initializer=tf.constant_initializer(0), trainable=False)
             bn_decay = get_bn_decay(global_step)
@@ -157,7 +158,6 @@ def train():
         sess.run(init)
 
         # if a checkpoint exists, restore from the latest checkpoint
-        epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
         ckpt = tf.train.get_checkpoint_state(os.path.dirname(os.path.join(LOG_DIR, 'checkpoint')))
         print('----', os.path.abspath(os.path.join(LOG_DIR, 'checkpoint')), ckpt)
         if ckpt and ckpt.model_checkpoint_path:
