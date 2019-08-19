@@ -195,10 +195,10 @@ def train():
             eval_one_epoch(sess, ops, test_writer)
 
             # Save the variables to disk.
-            #if epoch % 10 == 0:
-            tf.assign(epoch_var, epoch + 1)
-            save_path = saver.save(sess, os.path.join(LOG_DIR, 'checkpoint'), global_step=batch)
-            log_string("Model saved in file: %s" % save_path)
+            if epoch % 10 == 0:
+                tf.assign(epoch_var, epoch + 1)
+                save_path = saver.save(sess, os.path.join(LOG_DIR, 'checkpoint'), global_step=batch)
+                log_string("Model saved in file: %s" % save_path)
 
 
 def train_one_epoch(sess, ops, train_writer):
