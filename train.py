@@ -159,9 +159,8 @@ def train():
         ckpt = tf.train.get_checkpoint_state(os.path.dirname(os.path.join(LOG_DIR, 'checkpoint')))
         print('----', os.path.abspath(os.path.join(LOG_DIR, 'checkpoint')), ckpt)
         if ckpt and ckpt.model_checkpoint_path:
-            print('----- restoring model')
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print('restore global_step={}'.format(tf.train.global_step(sess, global_step)))
+            print('restoring global_step={}'.format(tf.train.global_step(sess, global_step)))
             print('restoring epoch={}'.format(sess.run(epoch_var)))
 
         # Add summary writers
@@ -169,8 +168,8 @@ def train():
         train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'), sess.graph)
         test_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'test'), sess.graph)
 
+        # gets current epoch integer
         cur_epoch = sess.run(epoch_var)
-        print(cur_epoch)
 
         ops = {'pointclouds_pl': pointclouds_pl,
                'labels_pl': labels_pl,
