@@ -25,6 +25,7 @@ import tf_util
 import modelnet_dataset
 import modelnet_h5_dataset
 import shapenet_symmetry
+import symcomp17_dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
@@ -88,9 +89,18 @@ else:
 '''
 
 # loads the dataset
-assert(NUM_POINT<=2048)
-TRAIN_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/train_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=True)
-TEST_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/test_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=False)
+# get dataset
+train_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'train', symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
+test_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'test', symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
+
+# get dataset iterator
+train_iterator = tf.data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+test_iterator = tf.data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
+
+train_iter = train_iterator.make_initializer(train_data)
+train_next_element = train_iterator.get_next()
+test_iter = test_iterator.make_initializer(test_data)
+test_next_element = test_iterator.get_next()
 
 def log_string(out_str):
     LOG_FOUT.write(out_str+'\n')
@@ -120,7 +130,7 @@ def get_bn_decay(batch):
 def train():
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
+            #pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
             is_training_pl = tf.placeholder(tf.bool, shape=())
 
             global_step = tf.train.get_or_create_global_step()
@@ -129,17 +139,17 @@ def train():
             tf.summary.scalar('bn_decay', bn_decay)
 
             # Get model and loss 
-            pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
-            MODEL.get_loss(pred, labels_pl, end_points)
+            pred, end_points = MODEL.get_model(train_next_element, is_training_pl, bn_decay=bn_decay)
+            MODEL.get_loss(pred, train_next_element, end_points)
             losses = tf.get_collection('losses')
             total_loss = tf.add_n(losses, name='total_loss')
             tf.summary.scalar('total_loss', total_loss)
             for l in losses + [total_loss]:
                 tf.summary.scalar(l.op.name, l)
 
-            correct = tf.equal(tf.argmax(pred, 1), tf.to_int64(labels_pl))
-            accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE)
-            tf.summary.scalar('accuracy', accuracy)
+            #correct = tf.equal(tf.argmax(pred, 1), tf.to_int64(labels_pl))
+            #accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE)
+            #tf.summary.scalar('accuracy', accuracy)
 
             print("--- Get training operator")
             # Get training operator
@@ -179,8 +189,8 @@ def train():
         # gets current epoch integer
         cur_epoch = sess.run(epoch_var)
 
-        ops = {'pointclouds_pl': pointclouds_pl,
-               'labels_pl': labels_pl,
+        ops = {#'pointclouds_pl': pointclouds_pl,
+               #'labels_pl': labels_pl,
                'is_training_pl': is_training_pl,
                'pred': pred,
                'loss': total_loss,
@@ -223,41 +233,76 @@ def train_one_epoch(sess, ops, train_writer):
     log_string(str(datetime.now()))
 
     # Make sure batch data is of same size
-    cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE), dtype=np.int32)
+    #cur_batch_data = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
+    #cur_batch_label = np.zeros((BATCH_SIZE), dtype=np.int32)
 
     total_correct = 0
     total_seen = 0
     loss_sum = 0
     batch_idx = 0
-    while TRAIN_DATASET.has_next_batch():
-        batch_data, batch_label = TRAIN_DATASET.next_batch(augment=True)
-        #batch_data = provider.random_point_dropout(batch_data)
-        bsize = batch_data.shape[0]
-        cur_batch_data[0:bsize,...] = batch_data
-        cur_batch_label[0:bsize] = batch_label
+    while True:
+        try:
+            #batch_data, batch_label = TRAIN_DATASET.next_batch(augment=True)
+            #batch_data = provider.random_point_dropout(batch_data)
+            #bsize = batch_data.shape[0]
+            #cur_batch_data[0:bsize,...] = batch_data
+            #cur_batch_label[0:bsize] = batch_label
 
-        feed_dict = {ops['pointclouds_pl']: cur_batch_data,
-                     ops['labels_pl']: cur_batch_label,
-                     ops['is_training_pl']: is_training,}
-        summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
-            ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
-        train_writer.add_summary(summary, step)
-        pred_val = np.argmax(pred_val, 1)
-        correct = np.sum(pred_val[0:bsize] == batch_label[0:bsize])
-        total_correct += correct
-        total_seen += bsize
-        loss_sum += loss_val
-        if (batch_idx+1)%50 == 0:
-            log_string(' ---- batch: %03d ----' % (batch_idx+1))
-            log_string('mean loss: %f' % (loss_sum / 50))
-            log_string('accuracy: %f' % (total_correct / float(total_seen)))
-            total_correct = 0
-            total_seen = 0
-            loss_sum = 0
-        batch_idx += 1
+            feed_dict = {#ops['pointclouds_pl']: cur_batch_data,
+                         #ops['labels_pl']: cur_batch_label,
+                         ops['is_training_pl']: is_training,}
 
-    TRAIN_DATASET.reset()
+            summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
+                ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
+
+            train_writer.add_summary(summary, step)
+
+            #pred_val = np.argmax(pred_val, 1)
+            #correct = np.sum(pred_val[0:bsize] == batch_label[0:bsize])
+            #total_correct += correct
+            #total_seen += bsize
+            loss_sum += loss_val
+
+            if (batch_idx+1)%50 == 0:
+                log_string(' ---- batch: %03d ----' % (batch_idx+1))
+                log_string('mean loss: %f' % (loss_sum / 50))
+                #log_string('accuracy: %f' % (total_correct / float(total_seen)))
+
+                #total_correct = 0
+                #total_seen = 0
+                loss_sum = 0
+            batch_idx += 1
+
+            '''batch_data, batch_label = TRAIN_DATASET.next_batch(augment=True)
+            #batch_data = provider.random_point_dropout(batch_data)
+            bsize = batch_data.shape[0]
+            cur_batch_data[0:bsize,...] = batch_data
+            cur_batch_label[0:bsize] = batch_label
+
+            feed_dict = {ops['pointclouds_pl']: cur_batch_data,
+                         ops['labels_pl']: cur_batch_label,
+                         ops['is_training_pl']: is_training,}
+            summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
+                ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
+            train_writer.add_summary(summary, step)
+            pred_val = np.argmax(pred_val, 1)
+            correct = np.sum(pred_val[0:bsize] == batch_label[0:bsize])
+            total_correct += correct
+            total_seen += bsize
+            loss_sum += loss_val
+            if (batch_idx+1)%50 == 0:
+                log_string(' ---- batch: %03d ----' % (batch_idx+1))
+                log_string('mean loss: %f' % (loss_sum / 50))
+                log_string('accuracy: %f' % (total_correct / float(total_seen)))
+                total_correct = 0
+                total_seen = 0
+                loss_sum = 0
+            batch_idx += 1'''
+
+        except tf.errors.OutOfRangeError:
+            break
+
+    sess.run(train_iter)
         
 def eval_one_epoch(sess, ops, test_writer):
     """ ops: dict mapping from string to tf ops """
@@ -265,7 +310,7 @@ def eval_one_epoch(sess, ops, test_writer):
     is_training = False
 
     # Make sure batch data is of same size
-    cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TEST_DATASET.num_channel()))
+    cur_batch_data = np.zeros((BATCH_SIZE, NUM_POINT, TEST_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE), dtype=np.int32)
 
     total_correct = 0

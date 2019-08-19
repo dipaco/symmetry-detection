@@ -7,6 +7,7 @@ import os
 import sys
 import numpy as np
 import h5py
+import tensorflow as tf
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 ROOT_DIR = BASE_DIR
@@ -15,7 +16,7 @@ import provider
 
 
 # Download dataset for point cloud classification
-DATA_DIR = os.path.join(ROOT_DIR, 'data')
+'''DATA_DIR = os.path.join(ROOT_DIR, 'data')
 if not os.path.exists(DATA_DIR):
     os.mkdir(DATA_DIR)
 if not os.path.exists(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048')):
@@ -23,7 +24,7 @@ if not os.path.exists(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048')):
     zipfile = os.path.basename(www)
     os.system('wget %s; unzip %s' % (www, zipfile))
     os.system('mv %s %s' % (zipfile[:-4], DATA_DIR))
-    os.system('rm %s' % (zipfile))
+    os.system('rm %s' % (zipfile))'''
 
 
 def shuffle_data(data, labels):
@@ -57,12 +58,12 @@ class ShapenetSymmetryDataset(object):
         self.batch_size = batch_size
         self.npoints = npoints
         self.shuffle = shuffle
-        self.h5_files = getDataFiles(self.list_filename)
+        self.tfrecords_files = getDataFiles(self.list_filename)
         self.reset()
 
     def reset(self):
         ''' reset order of h5 files '''
-        self.file_idxs = np.arange(0, len(self.h5_files))
+        self.file_idxs = np.arange(0, len(self.tfrecords_files))
         if self.shuffle: np.random.shuffle(self.file_idxs)
         self.current_data = None
         self.current_label = None
@@ -80,7 +81,7 @@ class ShapenetSymmetryDataset(object):
 
 
     def _get_data_filename(self):
-        return self.h5_files[self.file_idxs[self.current_file_idx]]
+        return self.tfrecords_files[self.file_idxs[self.current_file_idx]]
 
     def _load_data_file(self, filename):
         self.current_data,self.current_label = load_h5(filename)
@@ -96,9 +97,10 @@ class ShapenetSymmetryDataset(object):
         return 3
 
     def has_next_batch(self):
+
         # TODO: add backend thread to load data
         if (self.current_data is None) or (not self._has_next_batch_in_file()):
-            if self.current_file_idx >= len(self.h5_files):
+            if self.current_file_idx >= len(self.tfrecords_files):
                 return False
             self._load_data_file(self._get_data_filename())
             self.batch_idx = 0
@@ -115,7 +117,35 @@ class ShapenetSymmetryDataset(object):
         label_batch = self.current_label[start_idx:end_idx].copy()
         self.batch_idx += 1
         if augment: data_batch = self._augment_batch_data(data_batch)
-        return data_batch, label_batch 
+        return data_batch, label_batch
+
+    def _get_dataset(self, FLAGS, train_test, map_function):
+
+        if train_test in ['train']:
+            base_folder = FLAGS.train_tfrecord
+            mode = 'train'
+        elif train_test in ['test']:
+            base_folder = FLAGS.test_tfrecord
+            mode = 'test'
+
+        dataset = tf.data.TFRecordDataset(self.tfrecords_files, num_parallel_reads=os.cpu_count())
+        dataset = dataset.map(map_func=map_function)
+        #dataset = dataset.filter(
+        #    lambda w, x, y, z, u, v, f: tf.less_equal(tf.shape(w)[0], tf.cast(FLAGS.max_mesh_size, tf.int32)))
+        dataset = dataset.map(map_func=lambda w, x, y, z, u, v, f: [w,
+                                                                    tf.transpose(x, perm=[0, 2, 1]),
+                                                                    tf.expand_dims(y, -1),
+                                                                    z,
+                                                                    u,
+                                                                    v,
+                                                                    [f]])
+        # dataset = dataset.batch(1)
+        dataset = dataset.padded_batch(1, ([None, 3], [None, 3, 3], [1024, 3, 1], [3, 3, 3], [3], [], [1]))
+        # dataset = dataset.batch(1)
+        # dataset = dataset.shard(num_shards, 0)
+        # dataset = dataset.apply(tf.data.experimental.filter_for_shard(num_shards, 0))
+
+        return dataset
 
 if __name__=='__main__':
     d = ShapenetSymmetryDataset('data/modelnet40_ply_hdf5_2048/train_files.txt')
