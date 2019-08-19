@@ -47,7 +47,7 @@ class Dataset(object):
 
     @staticmethod
     def get_dataset(FLAGS, train_test, map_function):
-        num_shards = int(FLAGS.train_size / FLAGS.num_samples)
+        #num_shards = int(FLAGS.train_size / FLAGS.num_samples)
         if train_test in ['train']:
             base_folder = FLAGS.train_tfrecord
             mode = 'train'
