@@ -154,7 +154,7 @@ def train():
         # if a checkpoint exists, restore from the latest checkpoint
         epoch_var = tf.Variable(0, trainable=False, name='epoch', dtype=tf.int32)
         ckpt = tf.train.get_checkpoint_state(os.path.abspath(os.path.join(LOG_DIR, 'checkpoint')))
-        print('----', LOG_DIR, ckpt)
+        print('----', os.path.abspath(os.path.join(LOG_DIR, 'checkpoint')), ckpt)
         if ckpt and ckpt.model_checkpoint_path:
             print('----- restoring model')
             saver.restore(sess, ckpt.model_checkpoint_path)
