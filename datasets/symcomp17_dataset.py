@@ -9,8 +9,6 @@ from collections import defaultdict
 from dataset import Dataset
 from glob import glob
 
-from trimesh_extend import ExtendTrimesh
-
 
 class Symcomp17Dataset(Dataset):
     def __init__(self, basedir, num_samples):
@@ -41,7 +39,7 @@ class Symcomp17Dataset(Dataset):
 
     @staticmethod
     def load_clean_mesh(filename, ext='ply', return_normal_pars=False):
-        mesh = ExtendTrimesh(trimesh.load(filename, ext))
+        mesh = trimesh.load(filename, ext)
 
         mesh.remove_degenerate_faces()
         mesh.remove_duplicate_faces()
