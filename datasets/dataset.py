@@ -61,13 +61,13 @@ class Dataset(object):
         #    lambda w, x, y, z, u, v, f: tf.less_equal(tf.shape(w)[0], tf.cast(FLAGS.max_mesh_size, tf.int32)))
         dataset = dataset.map(map_func=lambda w, x, y, z, u, v, f: [w,
                                                                     tf.transpose(x, perm=[0, 2, 1]),
-                                                                    tf.expand_dims(y, -1),
+                                                                    y,
                                                                     z,
                                                                     u,
                                                                     v,
                                                                     [f]])
         # dataset = dataset.batch(1)
-        dataset = dataset.padded_batch(1, ([None, 3], [None, 3, 3], [1024, 3, 1], [3, 3, 3], [3], [], [1]))
+        dataset = dataset.padded_batch(1, ([None, 3], [None, 3, 3], [1024, 3], [3, 3, 3], [3], [], [1]))
         # dataset = dataset.batch(1)
         # dataset = dataset.shard(num_shards, 0)
         # dataset = dataset.apply(tf.data.experimental.filter_for_shard(num_shards, 0))
