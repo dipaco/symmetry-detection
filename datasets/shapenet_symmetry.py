@@ -134,7 +134,7 @@ class ShapenetSymmetryDataset(object):
         #    lambda w, x, y, z, u, v, f: tf.less_equal(tf.shape(w)[0], tf.cast(FLAGS.max_mesh_size, tf.int32)))
         dataset = dataset.map(map_func=lambda w, x, y, z, u, v, f: [w,
                                                                     tf.transpose(x, perm=[0, 2, 1]),
-                                                                    tf.expand_dims(y, -1),
+                                                                    y,
                                                                     z,
                                                                     u,
                                                                     v,
