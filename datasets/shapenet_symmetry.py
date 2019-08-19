@@ -119,7 +119,7 @@ class ShapenetSymmetryDataset(object):
         if augment: data_batch = self._augment_batch_data(data_batch)
         return data_batch, label_batch
 
-    def _get_dataset(self, FLAGS, train_test, map_function):
+    def get_dataset(self, FLAGS, train_test, map_function):
 
         if train_test in ['train']:
             base_folder = FLAGS.train_tfrecord
