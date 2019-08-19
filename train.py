@@ -40,7 +40,7 @@ parser.add_argument('--optimizer', default='adam', help='adam or momentum [defau
 parser.add_argument('--decay_step', type=int, default=200000, help='Decay step for lr decay [default: 200000]')
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.7]')
 parser.add_argument('--normal', action='store_true', help='Whether to use normal information')
-parser.add_argument('--data_folder', help='Folder with all the tensorflow records.')
+parser.add_argument('--data_dir', help='Folder with all the tensorflow records.')
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
