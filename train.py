@@ -135,12 +135,11 @@ def train():
             # Get training operator
             #learning_rate = get_learning_rate(batch)
             #tf.summary.scalar('learning_rate', learning_rate)
-            global_step = tf.train.get_or_create_global_step()
             if OPTIMIZER == 'momentum':
                 optimizer = tf.train.MomentumOptimizer(FLAGS.learning_rate, momentum=MOMENTUM)
             elif OPTIMIZER == 'adam':
                 optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-            train_op = optimizer.minimize(total_loss, global_step=global_step)
+            train_op = optimizer.minimize(total_loss, global_step=batch)
             
             # Add ops to save and restore all the variables.
             saver = tf.train.Saver()
@@ -157,7 +156,7 @@ def train():
         ckpt = tf.train.get_checkpoint_state(os.path.dirname(LOG_DIR))
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print('restore global_step={}'.format(tf.train.global_step(sess, global_step)))
+            print('restore global_step={}'.format(tf.train.global_step(sess, batch)))
 
             #epoch_var = tf.train.global_step(sess, global_step) * FLAGS.batch_size / FLAGS.train_size
 
@@ -196,7 +195,7 @@ def train():
             # Save the variables to disk.
             if epoch % 10 == 0:
                 tf.assign(epoch_var, epoch + 1)
-                save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"), global_step=global_step)
+                save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"), global_step=batch)
                 log_string("Model saved in file: %s" % save_path)
 
 
