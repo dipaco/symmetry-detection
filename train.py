@@ -88,20 +88,6 @@ else:
     TEST_DATASET = modelnet_h5_dataset.ModelNetH5Dataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/test_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=False)
 '''
 
-# loads the dataset
-# get dataset
-train_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'train', symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
-test_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'test', symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
-
-# get dataset iterator
-train_iterator = tf.data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
-test_iterator = tf.data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
-
-train_iter = train_iterator.make_initializer(train_data)
-train_next_element = train_iterator.get_next()
-test_iter = test_iterator.make_initializer(test_data)
-test_next_element = test_iterator.get_next()
-
 def log_string(out_str):
     LOG_FOUT.write(out_str+'\n')
     LOG_FOUT.flush()
@@ -130,6 +116,23 @@ def get_bn_decay(batch):
 def train():
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
+
+            # loads the dataset
+            # get dataset
+            train_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'train',
+                                                                        symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
+            test_data = symcomp17_dataset.Symcomp17Dataset.get_dataset(FLAGS, 'test',
+                                                                       symcomp17_dataset.Symcomp17Dataset.from_tfrecord)
+
+            # get dataset iterator
+            train_iterator = tf.data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+            test_iterator = tf.data.Iterator.from_structure(test_data.output_types, test_data.output_shapes)
+
+            train_iter = train_iterator.make_initializer(train_data)
+            train_next_element = train_iterator.get_next()
+            test_iter = test_iterator.make_initializer(test_data)
+            test_next_element = test_iterator.get_next()
+
             #pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
             is_training_pl = tf.placeholder(tf.bool, shape=())
 
