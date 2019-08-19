@@ -20,7 +20,7 @@ def placeholder_inputs(batch_size, num_point):
 def get_model(next_element, is_training, bn_decay=None):
     """ Classification PointNet, input is BxNx3, output Bx40 """
     #next_face_normals, next_triangles, point_cloud, next_gt_planes, next_w, next_num_planes, next_filename = next_element
-    point_cloud, next_gt_planes, next_w, next_num_planes, next_filename = next_element
+    point_cloud, next_gt_planes = next_element
 
     print(point_cloud.get_shape())
     batch_size = point_cloud.get_shape()[0].value
