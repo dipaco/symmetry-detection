@@ -613,3 +613,80 @@ def dropout(inputs,
                       lambda: tf.nn.dropout(inputs, keep_prob, noise_shape),
                       lambda: inputs)
     return outputs
+
+def tf_get_cyl_rep(vertices, normals, size=(32, 32), init_theta=0.0):
+    '''
+    Input:
+    vertices - (B,F,3,3) - (Batch size,number of Faces, R^3, num points in triangle)
+    normals - (B,F,3)
+    size - (image height, image width)
+    init_theta - Angle in the range [0.0, 2*pi], can be either a scalar value or a tensor of size (B, 1)
+    '''
+    # vertices = tf.transpose(vertices, perm=[0,1,3,2])
+    # This code uses (4) dimensional tensors in this order: (height, width, num_faces, 3)
+
+    batch_size = tf.shape(vertices)[0]
+    num_faces = tf.shape(vertices)[1]
+
+    # Creates a grid mesh of specified size to store all possible values for h and theta axis
+
+    delta_theta = 2 * math.pi / size[1]
+    theta = tf.linspace(delta_theta / 2.0, delta_theta / 2.0 + 2 * math.pi - delta_theta, size[1])
+    theta = tf.tile(theta[None, ...], [batch_size, 1]) + init_theta
+
+    min_coors = tf.reduce_min(vertices, axis=[1, 3])
+    max_coors = tf.reduce_max(vertices, axis=[1, 3])
+    delta_h = (max_coors - min_coors)
+    h = -tf.linspace(-1.0, 0.0, size[0])
+    h = tf.einsum('b,h -> bh', delta_h[..., 2], h) + min_coors[:, 2][..., None]
+
+    # h_vector contains a vector of the form (0, 0, h) for each entry of the mesh grid
+    h_vector = tf.expand_dims(
+        tf.concat([
+            tf.zeros([batch_size, size[0], num_faces, 1], dtype=tf.float32),
+            tf.zeros([batch_size, size[0], num_faces, 1], dtype=tf.float32),
+            tf.tile(h[..., None], [1, 1, num_faces])[..., None]
+        ], axis=3)
+    , axis=2)
+
+    # h_vector = tf.reshape(h_v, (-1,1))
+
+    # orientation contains a vector of the form (cos(theta), sin(theta), 0) for each entry of the mesh grid
+    orientation = tf.expand_dims(
+        tf.concat([
+            tf.tile(tf.cos(theta[..., None]), [1, 1, num_faces])[..., None],
+            tf.tile(tf.sin(theta[..., None]), [1, 1, num_faces])[..., None],
+            tf.zeros([batch_size, size[1], num_faces, 1], dtype=tf.float32),
+        ], axis=3)
+    , axis=1)
+
+    # Expands the normals to store the normal at each triangle for each entry of the mesh grid
+    # basically the normals vector is repeated size[0]*size[1]
+    normals = tf.cast(normals, tf.float32)
+    #return tf.shape(normals)
+
+    # sames as above for the vertices of each triangle
+    vertices = tf.expand_dims(tf.cast(vertices, tf.float32), axis=1)
+    vertices = tf.expand_dims(vertices, axis=1)
+
+    # "a" is the first point in each triangle (repeated through the mesh grid)
+    # a = tf.squeeze(tf.slice(tf.cast(vertices, tf.float32), [0, 0, 0, 0, 0, 0], [batch_size, size[0], size[1], num_faces, 3, 1]), [5])
+    a_minus_h_vector = tf.subtract(tf.cast(vertices[..., 0], tf.float32), h_vector)
+
+    num = tf.einsum('bnr,bhtnr->bhn', normals, a_minus_h_vector)
+    num = tf.expand_dims(num, axis=2)
+    den = tf.einsum('bnr,bhtnr->btn', normals, orientation)
+    den = tf.expand_dims(den, axis=1)
+
+    d = tf.divide(num, den + 1e-5)
+
+    # "p" stores all the intersections of each ray with all triangles
+    p = tf.add(tf.einsum('bhtn,bhtnr->bhtnr', d, orientation), h_vector)
+
+    # I is the indicator function telling if a point is in the respective triangle
+    I = tf.cast(tf_is_convex_combination_batch_optimized(p, vertices), tf.float32)
+
+    # final 2D cylindrical representation
+    cyl_image = tf.maximum(tf.reduce_max(tf.multiply(d, I), axis=3), 0)
+
+    return cyl_image
