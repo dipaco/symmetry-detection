@@ -9,6 +9,7 @@ sys.path.append(os.path.join(BASE_DIR, '../utils'))
 import tqdm
 import pickle
 import time
+import h5py
 import numpy as np
 import tensorflow as tf
 import symcomp17_dataset
@@ -55,96 +56,124 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
 
         init_time = time.time()
 
-        with tf.python_io.TFRecordWriter(h5_filename) as writer:
-            with tf.Session() as sess:
+        with tf.Session() as sess:
 
-                triangle = tf.placeholder(tf.float32, shape=(None, None, 3, 3))
-                normals = tf.placeholder(tf.float32, shape=(None, None, 3))
+            all_face_normals = []
+            all_triangles = []
+            all_points = []
+            all_symmetry_planes = []
+            all_filenames = []
 
-                total_meshes = len(files)
+            triangle = tf.placeholder(tf.float32, shape=(None, None, 3, 3))
+            normals = tf.placeholder(tf.float32, shape=(None, None, 3))
 
-                num_valid_meshes = 0
-                pb_files = tqdm.tqdm(files)
-                for k, f in enumerate(pb_files):
-                    pb_files.set_description('Processing {} (valid={}/{})'.format(f, num_valid_meshes, total_meshes))
+            total_meshes = len(files)
 
-                    symmetry_planes = np.zeros((3, 3, 3))
-                    w = np.ones(3)
-                    num_planes = 1
+            num_valid_meshes = 0
+            pb_files = tqdm.tqdm(files)
+            for k, f in enumerate(pb_files):
+                pb_files.set_description('Processing {} (valid={}/{})'.format(f, num_valid_meshes, total_meshes))
 
-                    try:
-                        mesh, (mean, radius) = ShapeNetSymmetryDataset.load_clean_mesh(f, ext, return_normal_pars=True)
+                # The default symmetry plane is YZ plane
+                symmetry_plane = np.array([[1.0, 0.0, 0.0]]).T
+                w = np.ones(3)
+                num_planes = 1
 
-                        # For visualization purposes we set the z axis to go up
-                        rot_mat = np.array([
-                            [1, 0, 0, 0],
-                            [0, 0, -1, 0],
-                            [0, 1, 0, 0],
-                            [0, 0, 0, 1]
-                        ])
+                #try:
+                mesh, (mean, radius) = ShapeNetSymmetryDataset.load_clean_mesh(f, ext, return_normal_pars=True)
 
-                        mesh.apply_transform(rot_mat)
+                # For visualization purposes we set the z axis to go up
+                rot_mat = np.array([
+                    [1, 0, 0, 0],
+                    [0, 0, -1, 0],
+                    [0, 1, 0, 0],
+                    [0, 0, 0, 1]
+                ])
 
-                        # Then the default symmetry plane is YZ plane
-                        symmetry_planes[0, ...] = np.array([[0, 1, -1], [0, 1, 1], [0, -1, -1]]).astype(float)
-                    except:
-                        print(k, '(Error reading the mesh)', f)
-                        continue
-                        # mesh.show()
+                mesh.apply_transform(rot_mat)
+                #except:
+                #print(k, '(Error reading the mesh)', f)
+                #continue
+                    # mesh.show()
 
-                    # Only use meshes with a certain maximum number of triangles
-                    if mesh.triangles.shape[0] > self.max_num_triangles:
+                # Only use meshes with a certain maximum number of triangles
+                if mesh.triangles.shape[0] > self.max_num_triangles:
+                    continue
+                else:
+
+                    tr1 = np.transpose(mesh.triangles, axes=[0, 2, 1])[None, ...]
+                    norm = mesh.face_normals[None, ...]
+
+                    r = tf_get_cyl_rep(triangle, normals, (32, 32), init_theta=tf.constant(np.pi / 2.0))
+
+                    res = sess.run(r, feed_dict={triangle: tr1.astype(np.float32), normals: norm})
+                    res = res[0, ...]
+                    res /= max(np.sqrt((res**2).sum()), 1e-5)
+                    flipped_res = np.flip(res, axis=1)
+
+                    corr = np.sum(res*flipped_res)
+
+                    if 1 - corr > 2e-2:
                         continue
                     else:
+                        num_valid_meshes += 1
 
-                        tr1 = np.transpose(mesh.triangles, axes=[0, 2, 1])[None, ...]
-                        norm = mesh.face_normals[None, ...]
+                # Since in ShapeNet the symmetry plane is always the same plane, we add either azimuthal or random
+                # rotations to add more variability to the data.
+                if rotate:
+                    if rot_type == 'so3':
+                        mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_so3(mesh, return_rot_mat=True)
+                    elif rot_type == 'z':
+                        mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_azimuthal(mesh, return_rot_mat=True)
+                    else:
+                        raise ValueError('Rotation type {} is not valid.'.format(rot_type))
 
-                        r = tf_get_cyl_rep(triangle, normals, (32, 32), init_theta=tf.constant(np.pi / 2.0))
+                    symmetry_plane = rot_mat[:3, :3] @ symmetry_plane
 
-                        res = sess.run(r, feed_dict={triangle: tr1.astype(np.float32), normals: norm})
-                        res = res[0, ...]
-                        res /= max(np.sqrt((res**2).sum()), 1e-5)
-                        flipped_res = np.flip(res, axis=1)
+                face_normals = mesh.face_normals
+                triangles = mesh.triangles
 
-                        corr = np.sum(res*flipped_res)
+                points = self._sample_faces(mesh)
 
-                        if 1 - corr > 2e-2:
-                            continue
-                        else:
-                            num_valid_meshes += 1
+                filename, _ = os.path.splitext(os.path.basename(f))
+                #example = self.to_tfrecord(face_normals, triangles, points, symmetry_plane, w, num_planes, filename)
+                #writer.write(example.SerializeToString())
+                all_face_normals.append(face_normals)
+                all_triangles.append(triangles)
+                all_points.append(points)
+                all_symmetry_planes.append(symmetry_plane)
+                all_filenames.append(filename)
 
-                    # Since in ShapeNet the symmetry plane is always the same plane, we add either azimuthal or random
-                    # rotations to add more variability to the data.
-                    if rotate:
-                        if rot_type == 'so3':
-                            mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_so3(mesh, return_rot_mat=True)
-                        elif rot_type == 'z':
-                            mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_azimuthal(mesh, return_rot_mat=True)
-                        else:
-                            raise ValueError('Rotation type {} is not valid.'.format(rot_type))
+                # copies the mesh file
+                self.copy_mesh(f, os.path.join(os.path.dirname(h5_filename), 'dataset_symmetric_copy'))
 
-                        symmetry_planes[0, ...] = (rot_mat[:3, :3] @ symmetry_planes[0, ...].T).T
-
-                    face_normals = mesh.face_normals
-                    triangles = mesh.triangles
-
-                    points = self._sample_faces(mesh)
-
-                    filename, _ = os.path.splitext(os.path.basename(f))
-                    example = self.to_tfrecord(face_normals, triangles, points, symmetry_planes, w, num_planes, filename)
-                    writer.write(example.SerializeToString())
-
-                    # copies the mesh file
-                    self.copy_mesh(f, os.path.join(os.path.dirname(h5_filename), 'dataset_symmetric_copy'))
-
-                    # exits after one hour of running
-                    if time.time() - init_time > self.MAX_RUNNING_TIME or k >= objs_per_file - 1:
-                        return k + 1
+                # exits after one hour of running
+                if time.time() - init_time > self.MAX_RUNNING_TIME or num_valid_meshes >= objs_per_file:
+                    self._write_h5_data(h5_filename,
+                                        points=all_points,
+                                        face_normals=all_face_normals,
+                                        triangles=all_triangles,
+                                        symmetry_planes=all_symmetry_planes,
+                                        filenames=all_filenames)
+                    return k + 1
 
         print('Num. processed meshes: {}'.format(num_valid_meshes))
+        self._write_h5_data(h5_filename,
+                            points=all_points,
+                            face_normals=all_face_normals,
+                            triangles=all_triangles,
+                            symmetry_planes=all_symmetry_planes,
+                            filenames=all_filenames)
         return k + 1
 
+    def _write_h5_data(self, h5_filename, points, face_normals, triangles, symmetry_planes, filenames):
+        hf = h5py.File(h5_filename, 'w')
+        hf.create_dataset('points', data=np.array(points), compression="gzip", compression_opts=9)
+        #hf.create_dataset('face_normals', data=face_normals, compression="gzip", compression_opts=9)
+        #hf.create_dataset('triangles', data=np.array(triangles, dtype=object), compression="gzip", compression_opts=9)
+        hf.create_dataset('symmetry_planes', data=np.array(symmetry_planes), compression="gzip", compression_opts=9)
+        #hf.create_dataset('filenames', data=filenames, compression="gzip", compression_opts=9)
+        hf.close()
 
     def build_tfrecord(self, tfrecord_filename, files, ext='obj', rotate=False, rot_type='z'):
 
@@ -248,7 +277,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         copyfile(f, os.path.join(output_folder, els[-1]))
 
     def generate_h5_train(self, tfrecord_path=None, shuffle_data=True, ext='off', rotate=False, offset=0,
-                                file_counter=0, rot_type='z', num_h5_files=48):
+                                file_counter=0, rot_type='z', objs_per_file=1024):
         self.trainfiles = self.shuffle() if shuffle_data else self.trainfiles
 
         if tfrecord_path is None:
@@ -256,16 +285,16 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         else:
             h5_filename = tfrecord_path + '/train' + str(self.num_samples) + '_{}.h5'.format(file_counter)
 
-        return self.build_h5_file(h5_filename, self.trainfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=num_h5_files)
+        return self.build_h5_file(h5_filename, self.trainfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file)
 
     def generate_h5_test(self, tfrecord_path=None, ext='off', rotate=False, offset=0, file_counter=0,
-                               rot_type='z', num_h5_files=48):
+                               rot_type='z', objs_per_file=1024):
         if tfrecord_path is None:
             h5_filename = self.basedir + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
         else:
             h5_filename = tfrecord_path + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
 
-        return self.build_h5_file(h5_filename, self.testfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=num_h5_files)
+        return self.build_h5_file(h5_filename, self.testfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file)
 
 
 def str2bool(v):
@@ -290,7 +319,7 @@ if __name__ == '__main__':
     parser.add_argument('--rotate', type=str, help='Randomly rotate the mesh.', default='True')
     parser.add_argument('--rot_type', type=str, help='Rotation type [z, so3].', default='z')
     parser.add_argument('--make-a-copy', type=str, help='Copy the symmetric files.', default='True')
-    parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=48)
+    parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=5)
     parser.add_argument('--dataset_type', type=str, help='Type of dataset: (tfrecord or h5).', default='h5')
 
     args = parser.parse_args()
@@ -386,15 +415,16 @@ if __name__ == '__main__':
         pickle.dump(current_state, pickle_file)
 
     # demonstrates use of the file
-    tfdataset = tf.data.TFRecordDataset(args.save_path + '/train1024_0.tfrecord')
-    tfdataset = tfdataset.map(map_func=ShapeNetSymmetryDataset.from_tfrecord)
+    if args.dataset_type == 'tfrecord':
+        tfdataset = tf.data.TFRecordDataset(args.save_path + '/train1024_0.tfrecord')
+        tfdataset = tfdataset.map(map_func=ShapeNetSymmetryDataset.from_tfrecord)
 
-    iterator = tfdataset.make_one_shot_iterator()
-    next_element = iterator.get_next()
+        iterator = tfdataset.make_one_shot_iterator()
+        next_element = iterator.get_next()
 
-    with tf.Session() as sess:
-        for i in range(2):
-            value = sess.run(next_element)
-            print(value[0].shape, value[1].shape, value[2].shape, value[3], value[4])
-            print(type(value[0]), type(value[1]), type(value[2]), type(value[3]))
-            print(type(value[0][0]), type(value[1][0]), type(value[2][0]), type(value[3]), value[3])
+        with tf.Session() as sess:
+            for i in range(2):
+                value = sess.run(next_element)
+                print(value[0].shape, value[1].shape, value[2].shape, value[3], value[4])
+                print(type(value[0]), type(value[1]), type(value[2]), type(value[3]))
+                print(type(value[0][0]), type(value[1][0]), type(value[2][0]), type(value[3]), value[3])
