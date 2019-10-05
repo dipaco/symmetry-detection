@@ -5,6 +5,7 @@ Date: November 2017
 """
 
 import numpy as np
+import math
 import tensorflow as tf
 
 def _variable_on_cpu(name, shape, initializer, use_fp16=False):
@@ -690,3 +691,35 @@ def tf_get_cyl_rep(vertices, normals, size=(32, 32), init_theta=0.0):
     cyl_image = tf.maximum(tf.reduce_max(tf.multiply(d, I), axis=3), 0)
 
     return cyl_image
+
+
+def tf_is_convex_combination_batch_optimized(p, tri):
+    eps = tf.constant(5e-4, dtype=tf.float32)  # discretization effects???
+
+    p_shape = tf.shape(p)
+    tri = tf.tile(tri, [1, p_shape[1], p_shape[2], 1, 1, 1])
+
+    p1 = tri[..., 0]
+    p2 = tri[..., 1]
+    p3 = tri[..., 2]
+
+    u = p2 - p1
+    v = p3 - p1
+    w = p - p1
+
+    n = tf.cross(u, v)
+    u_cross_w = tf.cross(u, w)
+    w_cross_v = tf.cross(w, v)
+
+    den = tf.reduce_sum(n * n, axis=-1)
+    gamma = tf.reduce_sum(u_cross_w * n, axis=-1) / den
+    beta = tf.reduce_sum(w_cross_v * n, axis=-1) / den
+
+    alpha = 1 - gamma - beta
+
+    x = tf.stack([alpha, beta, gamma])
+
+    gt_zero = tf.reduce_all(tf.greater_equal(x, -eps), axis=0)
+    sum_to_one = tf.less_equal(tf.abs(tf.subtract(tf.reduce_sum(x, axis=0), 1)), eps)
+
+    return tf.logical_and(gt_zero, sum_to_one)

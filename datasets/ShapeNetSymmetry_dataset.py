@@ -51,6 +51,101 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
     def set_testfiles(self, files):
         self.testfiles = files
 
+    def build_h5_file(self, h5_filename, files, ext='obj', rotate=False, rot_type='z', objs_per_file=1024):
+
+        init_time = time.time()
+
+        with tf.python_io.TFRecordWriter(h5_filename) as writer:
+            with tf.Session() as sess:
+
+                triangle = tf.placeholder(tf.float32, shape=(None, None, 3, 3))
+                normals = tf.placeholder(tf.float32, shape=(None, None, 3))
+
+                total_meshes = len(files)
+
+                num_valid_meshes = 0
+                pb_files = tqdm.tqdm(files)
+                for k, f in enumerate(pb_files):
+                    pb_files.set_description('Processing {} (valid={}/{})'.format(f, num_valid_meshes, total_meshes))
+
+                    symmetry_planes = np.zeros((3, 3, 3))
+                    w = np.ones(3)
+                    num_planes = 1
+
+                    try:
+                        mesh, (mean, radius) = ShapeNetSymmetryDataset.load_clean_mesh(f, ext, return_normal_pars=True)
+
+                        # For visualization purposes we set the z axis to go up
+                        rot_mat = np.array([
+                            [1, 0, 0, 0],
+                            [0, 0, -1, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 0, 1]
+                        ])
+
+                        mesh.apply_transform(rot_mat)
+
+                        # Then the default symmetry plane is YZ plane
+                        symmetry_planes[0, ...] = np.array([[0, 1, -1], [0, 1, 1], [0, -1, -1]]).astype(float)
+                    except:
+                        print(k, '(Error reading the mesh)', f)
+                        continue
+                        # mesh.show()
+
+                    # Only use meshes with a certain maximum number of triangles
+                    if mesh.triangles.shape[0] > self.max_num_triangles:
+                        continue
+                    else:
+
+                        tr1 = np.transpose(mesh.triangles, axes=[0, 2, 1])[None, ...]
+                        norm = mesh.face_normals[None, ...]
+
+                        r = tf_get_cyl_rep(triangle, normals, (32, 32), init_theta=tf.constant(np.pi / 2.0))
+
+                        res = sess.run(r, feed_dict={triangle: tr1.astype(np.float32), normals: norm})
+                        res = res[0, ...]
+                        res /= max(np.sqrt((res**2).sum()), 1e-5)
+                        flipped_res = np.flip(res, axis=1)
+
+                        corr = np.sum(res*flipped_res)
+
+                        if 1 - corr > 2e-2:
+                            continue
+                        else:
+                            num_valid_meshes += 1
+
+                    # Since in ShapeNet the symmetry plane is always the same plane, we add either azimuthal or random
+                    # rotations to add more variability to the data.
+                    if rotate:
+                        if rot_type == 'so3':
+                            mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_so3(mesh, return_rot_mat=True)
+                        elif rot_type == 'z':
+                            mesh, rot_mat = ShapeNetSymmetryDataset.rotate_mesh_azimuthal(mesh, return_rot_mat=True)
+                        else:
+                            raise ValueError('Rotation type {} is not valid.'.format(rot_type))
+
+                        symmetry_planes[0, ...] = (rot_mat[:3, :3] @ symmetry_planes[0, ...].T).T
+
+                    face_normals = mesh.face_normals
+                    triangles = mesh.triangles
+
+                    points = self._sample_faces(mesh)
+
+                    filename, _ = os.path.splitext(os.path.basename(f))
+                    example = self.to_tfrecord(face_normals, triangles, points, symmetry_planes, w, num_planes, filename)
+                    writer.write(example.SerializeToString())
+
+                    # copies the mesh file
+                    self.copy_mesh(f, os.path.join(os.path.dirname(h5_filename), 'dataset_symmetric_copy'))
+
+                    # exits after one hour of running
+                    if time.time() - init_time > self.MAX_RUNNING_TIME or k >= objs_per_file - 1:
+                        return k + 1
+
+        print('Num. processed meshes: {}'.format(num_valid_meshes))
+        return k + 1
+
+
     def build_tfrecord(self, tfrecord_filename, files, ext='obj', rotate=False, rot_type='z'):
 
         init_time = time.time()
@@ -152,6 +247,26 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             os.makedirs(output_folder)
         copyfile(f, os.path.join(output_folder, els[-1]))
 
+    def generate_h5_train(self, tfrecord_path=None, shuffle_data=True, ext='off', rotate=False, offset=0,
+                                file_counter=0, rot_type='z', num_h5_files=48):
+        self.trainfiles = self.shuffle() if shuffle_data else self.trainfiles
+
+        if tfrecord_path is None:
+            h5_filename = self.basedir + '/train' + str(self.num_samples) + '_{}.h5'.format(file_counter)
+        else:
+            h5_filename = tfrecord_path + '/train' + str(self.num_samples) + '_{}.h5'.format(file_counter)
+
+        return self.build_h5_file(h5_filename, self.trainfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=num_h5_files)
+
+    def generate_h5_test(self, tfrecord_path=None, ext='off', rotate=False, offset=0, file_counter=0,
+                               rot_type='z', num_h5_files=48):
+        if tfrecord_path is None:
+            h5_filename = self.basedir + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
+        else:
+            h5_filename = tfrecord_path + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
+
+        return self.build_h5_file(h5_filename, self.testfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=num_h5_files)
+
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -174,7 +289,9 @@ if __name__ == '__main__':
     parser.add_argument('--ext', type=str, help='Files extension', default='ply')
     parser.add_argument('--rotate', type=str, help='Randomly rotate the mesh.', default='True')
     parser.add_argument('--rot_type', type=str, help='Rotation type [z, so3].', default='z')
-    parser.add_argument('--make-a-copy', type=str, help='Just.', default='True')
+    parser.add_argument('--make-a-copy', type=str, help='Copy the symmetric files.', default='True')
+    parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=48)
+    parser.add_argument('--dataset_type', type=str, help='Type of dataset: (tfrecord or h5).', default='h5')
 
     args = parser.parse_args()
 
@@ -183,6 +300,13 @@ if __name__ == '__main__':
 
     dataset = ShapeNetSymmetryDataset(args.datadir, args.num_samples, args.max_num_triangles)
     progress_fn = os.path.join(Path(args.save_path), 'progress.pkl')
+
+    if args.dataset_type == ['tfrecord']:
+        generation_function_train = dataset.generate_tfRecord_train
+        generation_function_test = dataset.generate_tfRecord_test
+    else:
+        generation_function_train = dataset.generate_h5_train
+        generation_function_test = dataset.generate_h5_test
 
     # Continues where prior execution left
     if os.path.exists(progress_fn):
@@ -206,20 +330,22 @@ if __name__ == '__main__':
         # if there still files left to process in the training set
         if not train_done:
             train_file_counter += 1
-            train_offset += dataset.generate_tfRecord_train(args.save_path, ext=args.ext,
-                                                                    rotate=str2bool(args.rotate),
-                                                                    shuffle_data=False,
-                                                                    offset=train_offset,
-                                                                    file_counter=train_file_counter,
-                                                                    rot_type=args.rot_type)
+            train_offset += generation_function_train(args.save_path, ext=args.ext,
+                                                rotate=str2bool(args.rotate),
+                                                shuffle_data=False,
+                                                offset=train_offset,
+                                                file_counter=train_file_counter,
+                                                rot_type=args.rot_type,
+                                                objs_per_file=args.num_objs_per_file)
             train_done = train_offset >= len(dataset.trainfiles)
 
         if train_done and not test_done:
-            test_offset += dataset.generate_tfRecord_test(args.save_path, ext=args.ext,
-                                                         rotate=str2bool(args.rotate),
-                                                         offset=test_offset,
-                                                         file_counter=test_file_counter,
-                                                         rot_type=args.rot_type)
+            test_offset += generation_function_test(args.save_path, ext=args.ext,
+                                             rotate=str2bool(args.rotate),
+                                             offset=test_offset,
+                                             file_counter=test_file_counter,
+                                             rot_type=args.rot_type,
+                                             objs_per_file=args.num_objs_per_file)
             test_file_counter += 1
         test_done = test_offset >= len(dataset.testfiles)
 
@@ -233,11 +359,11 @@ if __name__ == '__main__':
         train_file_counter = 0
         test_file_counter = 0
 
-        train_offset = dataset.generate_tfRecord_train(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), shuffle_data=False, rot_type=args.rot_type)
+        train_offset = generation_function_train(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), shuffle_data=False, rot_type=args.rot_type, objs_per_file=args.num_objs_per_file)
         train_done = train_offset >= len(dataset.trainfiles)
 
         if train_done:
-            test_offset = dataset.generate_tfRecord_test(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), rot_type=args.rot_type)
+            test_offset = generation_function_test(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), rot_type=args.rot_type, objs_per_file=args.num_objs_per_file)
 
         test_done = test_offset >= len(dataset.testfiles)
 
