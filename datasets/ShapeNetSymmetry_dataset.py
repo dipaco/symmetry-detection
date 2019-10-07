@@ -39,12 +39,12 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
     def get_trainfiles(self, ext='ply', synset_id='*'):
         files = self._get_filenames('train', ext, synset_id)
         num_objects = len(files)
-        self.trainfiles = files[:int(0.85 * num_objects)]
+        self.trainfiles = files[:int(0.80 * num_objects)]
 
     def get_testfiles(self, ext='ply', synset_id='*'):
         files = self._get_filenames('test', ext, synset_id)
         num_objects = len(files)
-        self.testfiles = files[int(0.85 * num_objects):]
+        self.testfiles = files[int(0.80 * num_objects):]
 
     def set_trainfiles(self, files):
         self.trainfiles = files
@@ -319,7 +319,7 @@ if __name__ == '__main__':
     parser.add_argument('--rotate', type=str, help='Randomly rotate the mesh.', default='True')
     parser.add_argument('--rot_type', type=str, help='Rotation type [z, so3].', default='z')
     parser.add_argument('--make-a-copy', type=str, help='Copy the symmetric files.', default='True')
-    parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=5)
+    parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=1024)
     parser.add_argument('--dataset_type', type=str, help='Type of dataset: (tfrecord or h5).', default='h5')
 
     args = parser.parse_args()
