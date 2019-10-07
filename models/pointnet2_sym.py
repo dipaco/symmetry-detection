@@ -54,7 +54,9 @@ def get_loss(pred_plane, gt_plane, input_points):
     #I = tf.tile(tf.eye(3)[None, ...], [batch_size, 1, 1])
     #s = tf.einsum('', pred_plane, v)
 
-    cosine_similarity_loss = tf.keras.losses.cosine_similarity(gt_plane, pred_plane)
+    y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
+    y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
+    cosine_similarity_loss = tf.math_ops.reduce_sum(y_true * y_pred, axis=-1)
     cosine_similarity_loss = tf.reduce_sum(cosine_similarity_loss, axis=0)
 
     tf.summary.scalar('Cosine similarity loss', cosine_similarity_loss)
