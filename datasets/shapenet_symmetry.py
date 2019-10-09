@@ -110,7 +110,6 @@ class ShapenetSymmetryDataset(object):
         start_idx = self.batch_idx * self.batch_size
         end_idx = min((self.batch_idx+1) * self.batch_size, self.current_data.shape[0])
         bsize = end_idx - start_idx
-        batch_label = np.zeros((bsize), dtype=np.int32)
         data_batch = self.current_data[start_idx:end_idx, 0:self.npoints, :].copy()
         label_batch = self.current_label[start_idx:end_idx].copy()
         self.batch_idx += 1

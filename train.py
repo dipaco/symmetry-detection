@@ -222,7 +222,7 @@ def train_one_epoch(sess, ops, train_writer):
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE, 3), dtype=np.int32)
+    cur_batch_label = np.zeros((BATCH_SIZE, 3))
 
     loss_sum = 0
     batch_idx = 0
@@ -256,7 +256,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TEST_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE, 3), dtype=np.int32)
+    cur_batch_label = np.zeros((BATCH_SIZE, 3))
 
     loss_sum = 0
     batch_idx = 0
