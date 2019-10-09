@@ -139,10 +139,6 @@ def train():
             for l in losses + [total_loss]:
                 tf.summary.scalar(l.op.name, l)
 
-            correct = tf.equal(tf.argmax(pred, 1), tf.to_int64(labels_pl))
-            accuracy = tf.reduce_sum(tf.cast(correct, tf.float32)) / float(BATCH_SIZE)
-            tf.summary.scalar('accuracy', accuracy)
-
             print("--- Get training operator")
             # Get training operator
             if OPTIMIZER == 'momentum':
