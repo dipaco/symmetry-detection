@@ -42,14 +42,14 @@ def rotate_point_cloud(batch_data):
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
-        rotation_matrix = np.array([[cosval, -sinval, 0],
-                                    [sinval, cosval, 0],
-                                    [0, 0, 1]])
+        rotation_matrix = np.array([[cosval, 0, sinval],
+                                    [0, 1, 0],
+                                    [-sinval, 0, cosval]])
         shape_pc = batch_data[k, ...]
         rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
     return rotated_data
 
-def rotate_point_cloud_z(batch_data):
+def rotate_point_cloud_z(batch_data, sym_plane=None):
     """ Randomly rotate the point clouds to augument the dataset
         rotation is per shape based along up direction
         Input:
@@ -58,6 +58,9 @@ def rotate_point_cloud_z(batch_data):
           BxNx3 array, rotated batch of point clouds
     """
     rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
+    if sym_plane is not None:
+        rotated_sym_plane = np.zeros(sym_plane.shape, dtype=np.float32)
+
     for k in range(batch_data.shape[0]):
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
@@ -67,7 +70,13 @@ def rotate_point_cloud_z(batch_data):
                                     [0, 0, 1]])
         shape_pc = batch_data[k, ...]
         rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
-    return rotated_data
+        if sym_plane is not None:
+            rotated_sym_plane[k, ...] = np.dot(rotated_sym_plane[k, ...].reshape(-1, 3), rotation_matrix)
+
+    if sym_plane is not None:
+        return rotated_data, rotated_sym_plane
+    else:
+        return rotated_data
 
 def rotate_point_cloud_with_normal(batch_xyz_normal):
     ''' Randomly rotate XYZ, normal point cloud.

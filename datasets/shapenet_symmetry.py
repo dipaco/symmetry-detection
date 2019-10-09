@@ -69,14 +69,14 @@ class ShapenetSymmetryDataset(object):
         self.current_file_idx = 0
         self.batch_idx = 0
    
-    def _augment_batch_data(self, batch_data):
-        rotated_data = provider.rotate_point_cloud(batch_data)
+    def _augment_batch_data(self, batch_data, labels):
+        rotated_data, rotated_labels = provider.rotate_point_cloud_z(batch_data, labels)
         rotated_data = provider.rotate_perturbation_point_cloud(rotated_data)
         jittered_data = provider.random_scale_point_cloud(rotated_data[:,:,0:3])
         jittered_data = provider.shift_point_cloud(jittered_data)
         jittered_data = provider.jitter_point_cloud(jittered_data)
         rotated_data[:,:,0:3] = jittered_data
-        return provider.shuffle_points(rotated_data)
+        return provider.shuffle_points(rotated_data), rotated_labels
 
 
     def _get_data_filename(self):
@@ -113,7 +113,7 @@ class ShapenetSymmetryDataset(object):
         data_batch = self.current_data[start_idx:end_idx, 0:self.npoints, :].copy()
         label_batch = self.current_label[start_idx:end_idx].copy()
         self.batch_idx += 1
-        if augment: data_batch = self._augment_batch_data(data_batch)
+        if augment: data_batch, label_batch = self._augment_batch_data(data_batch, label_batch)
         return data_batch, label_batch 
 
 if __name__=='__main__':
