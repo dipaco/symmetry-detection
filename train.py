@@ -22,7 +22,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'datasets'))
 import provider
 import tf_util
-import tensorflow_logging
+import tensorboard_logging
 import modelnet_dataset
 import modelnet_h5_dataset
 import shapenet_symmetry
@@ -221,7 +221,7 @@ def train_one_epoch(sess, ops, train_writer):
     
     log_string(str(datetime.now()))
 
-    tb_logger = tensorflow_logging.Logger(train_writer)
+    tb_logger = tensorboard_logging.Logger(train_writer)
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
