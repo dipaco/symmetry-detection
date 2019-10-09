@@ -74,14 +74,9 @@ def _set_unit_limits_in_3d_plot(ax):
 
 
 def _show_point_cloud(ax, step, fig, points, figs_folder, name):
-    ax.scatter(points[0, :, 0], points[0, :, 1], points[0, :, 2], c='blue', marker='.')
-
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='blue', marker='.')
     _set_unit_limits_in_3d_plot(ax)
-
     point_cloud_fname = os.path.join(figs_folder, 'step_{}_{}_point_cloud.png'.format(step, name))
-    plt.savefig(point_cloud_fname)
-    plt.close(fig)
-
     return point_cloud_fname
 
 def _add_plane(ax, normal, color='blue', alpha=0.1, show_normal=True):
