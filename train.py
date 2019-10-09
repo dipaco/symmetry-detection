@@ -251,7 +251,7 @@ def train_one_epoch(sess, ops, train_writer):
             loss_sum = 0
 
             if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, end_points, pred_val, cur_batch_label)
+                MODEL.create_figures(FLAGS, step, tb_logger, end_points['l0_xyz'], pred_val, cur_batch_label)
 
         batch_idx += 1
 
