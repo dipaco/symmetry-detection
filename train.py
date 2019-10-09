@@ -42,6 +42,7 @@ parser.add_argument('--decay_step', type=int, default=200000, help='Decay step f
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.7]')
 parser.add_argument('--normal', action='store_true', help='Whether to use normal information')
 parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
+parser.add_argument('--create_figures', action='store_true')
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
