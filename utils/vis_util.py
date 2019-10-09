@@ -17,7 +17,9 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.title('Plane normals in the entire batch(batch_size={})'.format(pred_normal.shape[0]))
     batch_plane_normals_fname = os.path.join(figs_path, 'step_{}_batch_plane_normals.png'.format(step))
     for i in range(pred_normal.shape[0]):
-        _add_vector_arrow(ax, pred_normal[i, ...], color='red')
+        _add_vector_arrow(ax, pred_normal[i, ...], color='green')
+    for i in range(gt_plane.shape[0]):
+        _add_vector_arrow(ax, gt_plane[i, ...], color='red')
     _set_unit_limits_in_3d_plot(ax)
     plt.savefig(batch_plane_normals_fname)
     plt.close(fig)
