@@ -30,6 +30,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--model', default='pointnet2_cls_ssg', help='Model name [default: pointnet2_cls_ssg]')
 parser.add_argument('--log_dir', default='log', help='Log dir [default: log]')
+parser.add_argument('--dataset_dir', default='data', help='Folder where the files are stores [default: data]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [default: 1024]')
 parser.add_argument('--max_epoch', type=int, default=251, help='Epoch to run [default: 251]')
 parser.add_argument('--batch_size', type=int, default=16, help='Batch Size during training [default: 16]')
@@ -53,6 +54,7 @@ MOMENTUM = FLAGS.momentum
 OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
+DATASET_DIR = FLAGS.dataset_dir
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -89,8 +91,8 @@ else:
 
 # loads the dataset
 assert(NUM_POINT<=2048)
-TRAIN_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/train_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=True)
-TEST_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(BASE_DIR, 'data/modelnet40_ply_hdf5_2048/test_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=False)
+TRAIN_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(DATASET_DIR, 'train_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=True)
+TEST_DATASET = shapenet_symmetry.ShapenetSymmetryDataset(os.path.join(DATASET_DIR, 'test_files.txt'), batch_size=BATCH_SIZE, npoints=NUM_POINT, shuffle=False)
 
 def log_string(out_str):
     LOG_FOUT.write(out_str+'\n')
