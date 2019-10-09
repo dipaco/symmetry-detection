@@ -11,6 +11,8 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     if not os.path.exists(figs_path):
         os.makedirs(figs_path)
 
+    idx_to_show = np.random.randint(0, points.shape[0])
+
     # --- Shows all the normal vectors in the batch vectors ---
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -30,12 +32,12 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     ax = fig.add_subplot(111, projection='3d')
 
     # Shows the ground truth symmetry plane
-    normal = gt_plane[0, ...]
+    normal = gt_plane[idx_to_show, ...]
     normal /= np.linalg.norm(normal)
     _add_plane(ax, normal, color='red', alpha=0.2)
 
     # Shows the estimated symmetry plane
-    normal_est = pred_normal[0, ...]
+    normal_est = pred_normal[idx_to_show, ...]
     normal_est /= np.linalg.norm(normal_est)
     _add_plane(ax, normal_est, color='green', alpha=0.2)
 
@@ -45,7 +47,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.title('Angle bt. ground truth plane and estimated plane \n' + r'$cos(\theta) = {:.3f}$'.format(cos_theta))
     plt.rc('text', usetex=False)
 
-    point_cloud_fname = _show_point_cloud(ax, step, fig, points[0, ...], figs_path, '')
+    point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, '')
     plt.savefig(point_cloud_fname)
     plt.close(fig)
     # ------
