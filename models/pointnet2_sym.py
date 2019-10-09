@@ -56,8 +56,8 @@ def get_loss(pred_plane, gt_plane, input_points):
 
     y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
     y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
-    cosine_similarity_loss = tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1))
-    cosine_similarity_loss = tf.reduce_sum(cosine_similarity_loss, axis=0)
+    cosine_similarity_loss = 1 - tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1))
+    cosine_similarity_loss = tf.reduce_mean(cosine_similarity_loss, axis=0)
 
     tf.summary.scalar('Cosine similarity loss', cosine_similarity_loss)
     tf.add_to_collection('losses', cosine_similarity_loss)
