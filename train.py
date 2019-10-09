@@ -22,6 +22,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'datasets'))
 import provider
 import tf_util
+import tensorflow_logging
 import modelnet_dataset
 import modelnet_h5_dataset
 import shapenet_symmetry
@@ -220,6 +221,8 @@ def train_one_epoch(sess, ops, train_writer):
     
     log_string(str(datetime.now()))
 
+    tb_logger = tensorflow_logging.Logger(train_writer)
+
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
@@ -236,8 +239,8 @@ def train_one_epoch(sess, ops, train_writer):
         feed_dict = {ops['pointclouds_pl']: cur_batch_data,
                      ops['labels_pl']: cur_batch_label,
                      ops['is_training_pl']: is_training,}
-        summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
-            ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
+        summary, step, _, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
+            ops['train_op'], ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
         train_writer.add_summary(summary, step)
 
         loss_sum += loss_val
@@ -245,6 +248,10 @@ def train_one_epoch(sess, ops, train_writer):
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
+
+            if FLAGS.create_figures:
+                MODEL.create_figures(FLAGS, step, tb_logger, end_points, pred_val, cur_batch_label)
+
         batch_idx += 1
 
     TRAIN_DATASET.reset()

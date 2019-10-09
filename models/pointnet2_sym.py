@@ -10,6 +10,7 @@ sys.path.append(os.path.join(BASE_DIR, '../utils'))
 import tensorflow as tf
 import numpy as np
 import tf_util
+import vis_util
 from pointnet_util import pointnet_sa_module
 
 def placeholder_inputs(batch_size, num_point):
@@ -62,6 +63,11 @@ def get_loss(pred_plane, gt_plane, input_points):
     tf.summary.scalar('Cosine similarity loss', cosine_similarity_loss)
     tf.add_to_collection('losses', cosine_similarity_loss)
     return cosine_similarity_loss
+
+
+def create_figures(FLAGS, step, tb_logger, points, pred_plane, gt_plane):
+    figs_filenames = vis_util.gen_symmetry_fig(FLAGS, step, points, pred_plane, gt_plane)
+    tb_logger.log_images('figs', step, images_filenames=figs_filenames)
 
 
 if __name__=='__main__':
