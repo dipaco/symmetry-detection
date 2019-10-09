@@ -71,7 +71,7 @@ def rotate_point_cloud_z(batch_data, sym_plane=None):
         shape_pc = batch_data[k, ...]
         rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
         if sym_plane is not None:
-            rotated_sym_plane[k, ...] = np.dot(rotated_sym_plane[k, ...].reshape(-1, 3), rotation_matrix)
+            rotated_sym_plane[k, ...] = np.dot(sym_plane[k, ...], rotation_matrix)
 
     if sym_plane is not None:
         return rotated_data, rotated_sym_plane
