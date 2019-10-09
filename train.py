@@ -241,7 +241,7 @@ def train_one_epoch(sess, ops, train_writer):
         train_writer.add_summary(summary, step)
 
         loss_sum += loss_val
-        if (batch_idx+1) % 1 == 0:
+        if (batch_idx+1) % 50 == 0:
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
