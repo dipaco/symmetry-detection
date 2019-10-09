@@ -222,7 +222,7 @@ def train_one_epoch(sess, ops, train_writer):
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE), dtype=np.int32)
+    cur_batch_label = np.zeros((BATCH_SIZE, 3), dtype=np.int32)
 
     total_correct = 0
     total_seen = 0
@@ -233,7 +233,7 @@ def train_one_epoch(sess, ops, train_writer):
         #batch_data = provider.random_point_dropout(batch_data)
         bsize = batch_data.shape[0]
         cur_batch_data[0:bsize,...] = batch_data
-        cur_batch_label[0:bsize] = batch_label
+        cur_batch_label[0:bsize, ...] = batch_label
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_data,
                      ops['labels_pl']: cur_batch_label,
@@ -264,7 +264,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TEST_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE), dtype=np.int32)
+    cur_batch_label = np.zeros((BATCH_SIZE, 3), dtype=np.int32)
 
     total_correct = 0
     total_seen = 0
@@ -282,7 +282,7 @@ def eval_one_epoch(sess, ops, test_writer):
         bsize = batch_data.shape[0]
         # for the last batch in the epoch, the bsize:end are from last batch
         cur_batch_data[0:bsize,...] = batch_data
-        cur_batch_label[0:bsize] = batch_label
+        cur_batch_label[0:bsize, ...] = batch_label
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_data,
                      ops['labels_pl']: cur_batch_label,
