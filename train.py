@@ -241,7 +241,7 @@ def train_one_epoch(sess, ops, train_writer):
         train_writer.add_summary(summary, step)
 
         loss_sum += loss_val
-        if (batch_idx+1) % 50 == 0:
+        if (batch_idx+1) % 1 == 0:
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
@@ -261,8 +261,6 @@ def eval_one_epoch(sess, ops, test_writer):
     loss_sum = 0
     batch_idx = 0
     shape_ious = []
-    total_seen_class = [0 for _ in range(NUM_CLASSES)]
-    total_correct_class = [0 for _ in range(NUM_CLASSES)]
     
     log_string(str(datetime.now()))
     log_string('---- EPOCH %03d EVALUATION ----'%(EPOCH_CNT))
