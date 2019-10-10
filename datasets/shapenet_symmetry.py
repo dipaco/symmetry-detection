@@ -45,6 +45,7 @@ def load_h5(h5_filename):
     f = h5py.File(h5_filename)
     data = f['points'][:]
     label = f['symmetry_planes'][:]
+    f.close()
     return (data, label)
 
 def loadDataFile(filename):
