@@ -43,6 +43,7 @@ parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate fo
 parser.add_argument('--normal', action='store_true', help='Whether to use normal information')
 parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
 parser.add_argument('--create_figures', action='store_true')
+parser.add_argument('--augment', action='store_true')
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -231,7 +232,7 @@ def train_one_epoch(sess, ops, train_writer):
     loss_sum = 0
     batch_idx = 0
     while TRAIN_DATASET.has_next_batch():
-        batch_data, batch_label = TRAIN_DATASET.next_batch(augment=True)
+        batch_data, batch_label = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
         #batch_data = provider.random_point_dropout(batch_data)
         bsize = batch_data.shape[0]
         cur_batch_data[0:bsize,...] = batch_data
