@@ -41,7 +41,10 @@ def get_model(point_cloud, is_training, bn_decay=None):
     net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training, scope='dp1')
     net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training, scope='fc2', bn_decay=bn_decay)
     net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training, scope='dp2')
-    net = tf_util.fully_connected(net, 3, activation_fn=None, scope='fc3')
+    net = tf_util.fully_connected(net, 2, activation_fn=None, scope='fc3')
+
+    # attach a vector of zeros to account for the fixed value in the third dimension
+    net = tf.concat([net, tf.zeros([batch_size, 1])], axis=-1)
 
     return net, end_points
 
