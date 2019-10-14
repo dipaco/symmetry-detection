@@ -52,8 +52,19 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.close(fig)
     # ------
 
+    # --- Showing to point cloud with different colors to each size of the plane
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    left_points_idx = np.where(normal_est @ points[idx_to_show, ...] > 0)
+
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, '')
+    plt.savefig(part_point_cloud_fname)
+    plt.close(fig)
+    # ---
+
     # Creates a list with all the filenames to log
-    figures_filenames = [point_cloud_fname, batch_plane_normals_fname]
+    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname]
 
     return figures_filenames
 
