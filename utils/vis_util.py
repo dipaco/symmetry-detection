@@ -56,9 +56,12 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    left_points_idx = np.where(normal_est @ points[idx_to_show, ...].T > 0)
+    plane_semi_distance = normal_est @ points[idx_to_show, ...].T
+    left_points_idx = np.where(plane_semi_distance > 0)
+    right_points_idx = np.where(plane_semi_distance <= 0)
 
-    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, '')
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, 'tomato')
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, 'saddlebrown')
     plt.savefig(part_point_cloud_fname)
     plt.close(fig)
     # ---
@@ -88,8 +91,8 @@ def _set_unit_limits_in_3d_plot(ax):
     plt.yticks([-1, 0, 1])
 
 
-def _show_point_cloud(ax, step, fig, points, figs_folder, name):
-    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='blue', marker='.', s=10)
+def _show_point_cloud(ax, step, fig, points, figs_folder, name, color='blue'):
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=color, marker='.', s=10)
     _set_unit_limits_in_3d_plot(ax)
     point_cloud_fname = os.path.join(figs_folder, 'step_{}_{}_point_cloud.png'.format(step, name))
     return point_cloud_fname
