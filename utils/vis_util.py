@@ -44,7 +44,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     # Shows the cosine of the angle between planes
     cos_theta = np.sum(normal * normal_est)
     plt.rc('text', usetex=True)
-    plt.title('Angle bt. ground truth plane and estimated plane \n' + r'$cos(\theta) = {:.3f}$'.format(cos_theta))
+    plt.title('Angle bt. ground truth plane and estimated plane \n' + r'$cos(\theta) = {:.5f}$'.format(cos_theta))
     plt.rc('text', usetex=False)
 
     point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, '')
@@ -52,8 +52,19 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.close(fig)
     # ------
 
+    # --- Showing to point cloud with different colors to each size of the plane
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    left_points_idx = np.where(normal_est @ points[idx_to_show, ...] > 0)
+
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, '')
+    plt.savefig(part_point_cloud_fname)
+    plt.close(fig)
+    # ---
+
     # Creates a list with all the filenames to log
-    figures_filenames = [point_cloud_fname, batch_plane_normals_fname]
+    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname]
 
     return figures_filenames
 
