@@ -60,6 +60,11 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     left_points_idx = np.where(plane_semi_distance > 0)
     right_points_idx = np.where(plane_semi_distance <= 0)
 
+    print('\n\n\n\n\n\n')
+    print(left_points_idx.shape)
+    print(points.shape)
+    print('\n\n\n\n\n\n')
+
     part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, 'tomato')
     part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, right_points_idx, :], figs_path, 'saddlebrown')
     plt.savefig(part_point_cloud_fname)
