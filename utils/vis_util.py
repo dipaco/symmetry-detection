@@ -56,7 +56,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    left_points_idx = np.where(normal_est @ points[idx_to_show, ...] > 0)
+    left_points_idx = np.where(normal_est @ points[idx_to_show, ...].T > 0)
 
     part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, '')
     plt.savefig(part_point_cloud_fname)
