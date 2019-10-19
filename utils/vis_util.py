@@ -47,7 +47,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.title('Angle bt. ground truth plane and estimated plane \n' + r'$cos(\theta) = {:.5f}$'.format(cos_theta))
     plt.rc('text', usetex=False)
 
-    point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, '')
+    point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, 'single')
     plt.savefig(point_cloud_fname)
     plt.close(fig)
     # ------
@@ -56,17 +56,17 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
+    _add_vector_arrow(ax, normal, color='red', linewidth=1.0)
+    _add_vector_arrow(ax, normal_est, color='green', linewidth=1.0)
+
     plane_semi_distance = normal_est @ points[idx_to_show, ...].T
     left_points_idx = np.where(plane_semi_distance > 0)
     right_points_idx = np.where(plane_semi_distance <= 0)
+    left_points = np.squeeze(points[idx_to_show, left_points_idx, :])
+    right_points = np.squeeze(points[idx_to_show, right_points_idx, :])
 
-    print('\n\n\n\n\n\n')
-    print(left_points_idx.shape)
-    print(points.shape)
-    print('\n\n\n\n\n\n')
-
-    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, left_points_idx, :], figs_path, 'tomato')
-    part_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, right_points_idx, :], figs_path, 'saddlebrown')
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, right_points, figs_path, name='split', color='tomato')
+    part_point_cloud_fname = _show_point_cloud(ax, step, fig, left_points, figs_path, name='split', color='saddlebrown')
     plt.savefig(part_point_cloud_fname)
     plt.close(fig)
     # ---
