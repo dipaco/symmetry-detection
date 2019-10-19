@@ -46,7 +46,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     # Shows the cosine of the angle between planes
     plt.rc('text', usetex=True)
     plt.title('Angle bt. ground truth plane and estimated plane \n' +
-              r'$cos(\theta) = {:.5f}$'.format(cos_theta) +
+              r'$cos(\theta) = {:.5f}$, '.format(cos_theta) +
               r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
@@ -73,7 +73,7 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
 
     plt.rc('text', usetex=True)
     plt.title('Angle bt. ground truth plane and estimated plane \n' +
-              r'$cos(\theta) = {:.5f}$'.format(cos_theta) +
+              r'$cos(\theta) = {:.5f}$, '.format(cos_theta) +
               r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
