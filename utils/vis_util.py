@@ -31,20 +31,23 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    # Shows the ground truth symmetry plane
+    # Shows the ground truth symmetry plane and the estimated plane
     normal = gt_plane[idx_to_show, ...]
     normal /= np.linalg.norm(normal)
-    _add_plane(ax, normal, color='red', alpha=0.2)
-
-    # Shows the estimated symmetry plane
     normal_est = pred_normal[idx_to_show, ...]
     normal_est /= np.linalg.norm(normal_est)
+
+    cos_theta = np.sum(normal * normal_est)
+    theta = np.arccos(np.abs(cos_theta)) * 180 / np.pi
+
+    _add_plane(ax, normal, color='red', alpha=0.2)
     _add_plane(ax, normal_est, color='green', alpha=0.2)
 
     # Shows the cosine of the angle between planes
-    cos_theta = np.sum(normal * normal_est)
     plt.rc('text', usetex=True)
-    plt.title('Angle bt. ground truth plane and estimated plane \n' + r'$cos(\theta) = {:.5f}$'.format(cos_theta))
+    plt.title('Angle bt. ground truth plane and estimated plane \n' +
+              r'$cos(\theta) = {:.5f}$'.format(cos_theta) +
+              r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
     point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, 'single')
