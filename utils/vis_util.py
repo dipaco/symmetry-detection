@@ -70,6 +70,13 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
 
     part_point_cloud_fname = _show_point_cloud(ax, step, fig, right_points, figs_path, name='split', color='tomato')
     part_point_cloud_fname = _show_point_cloud(ax, step, fig, left_points, figs_path, name='split', color='saddlebrown')
+
+    plt.rc('text', usetex=True)
+    plt.title('Angle bt. ground truth plane and estimated plane \n' +
+              r'$cos(\theta) = {:.5f}$'.format(cos_theta) +
+              r'$\theta = {:.2f}$'.format(theta))
+    plt.rc('text', usetex=False)
+
     plt.savefig(part_point_cloud_fname)
     plt.close(fig)
     # ---
