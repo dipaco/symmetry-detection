@@ -7,12 +7,14 @@ import sys
 BASE_DIR = os.path.dirname(__file__)
 sys.path.append(BASE_DIR)
 sys.path.append(os.path.join(BASE_DIR, '../utils'))
+sys.path.append(os.path.join(BASE_DIR, '../dependencies/pointnet-autoencoder/tf_ops/nn_distance'))
 import tensorflow as tf
 import numpy as np
 import tf_util
 import vis_util
 import math
 from pointnet_util import pointnet_sa_module
+from tf_nndistance import nn_distance
 
 def placeholder_inputs(batch_size, num_point):
     pointclouds_pl = tf.placeholder(tf.float32, shape=(batch_size, num_point, 3))
@@ -50,24 +52,33 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
 
 def get_loss(pred_plane, gt_plane, input_points):
-    """ pred: B*NUM_CLASSES,
-        label: B, """
+    """ pred: B*N*3,
+        label: B*N*3,
 
-    #batch_size = input_points.get_shape()[0].value
+        Uses Householder transformation to reflect the original_points around the plane <pred>
+    """
 
-    # uses Householder transformation to reflect the original_points around the plane <pred>
-    #I = tf.tile(tf.eye(3)[None, ...], [batch_size, 1, 1])
-    #s = tf.einsum('', pred_plane, v)
+    # creates the reflexion matrix
+    T = tf.eye(3) - 2 * tf.einsum('bi, bj -> bij', pred_plane, pred_plane)
+
+    # reflects the orginal point cloud
+    reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points)
+
+    dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points)
+
+    chamfer_loss = tf.reduce_mean(dists_forward + dists_backward)
 
     y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
     y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
-    cosine_similarity = tf.reduce_mean(tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1)))
-    cosine_similarity_loss = 1 - cosine_similarity
+    cosine_similarity = tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1))
+    cosine_similarity_loss = 1 - tf.reduce_mean(cosine_similarity)
+    average_error_angle = tf.reduce_mean(tf.math.acos(cosine_similarity) * 180 / math.pi)
 
-    tf.summary.scalar('Cosine similarity loss', cosine_similarity_loss)
-    tf.summary.scalar('Mean error angle', tf.math.acos(cosine_similarity) * 180 / math.pi)
+    tf.summary.scalar('Cosine similarity loss', average_error_angle)
+    tf.summary.scalar('Mean error angle', )
     tf.add_to_collection('losses', cosine_similarity_loss)
-    return cosine_similarity_loss
+
+    return chamfer_loss
 
 
 def create_figures(FLAGS, step, tb_logger, points, pred_plane, gt_plane):
