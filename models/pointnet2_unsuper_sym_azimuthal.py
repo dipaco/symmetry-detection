@@ -62,9 +62,9 @@ def get_loss(pred_plane, gt_plane, input_points):
     T = tf.eye(3) - 2 * tf.einsum('bi, bj -> bij', pred_plane, pred_plane)
 
     # reflects the orginal point cloud
-    reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points)
+    reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points['l0_xyz'])
 
-    dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points)
+    dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
 
     chamfer_loss = tf.reduce_mean(dists_forward + dists_backward)
 
