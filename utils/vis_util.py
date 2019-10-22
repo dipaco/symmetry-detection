@@ -88,7 +88,11 @@ def gen_symmetry_fig(FLAGS, step, dict_points, pred_normal, gt_plane):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     original_point_cloud_fname = _show_point_cloud(ax, step, fig, points, figs_path, name='original', color='blue')
+    plt.savefig(part_point_cloud_fname)
+    plt.close(fig)
     reflected_point_cloud_fname = _show_point_cloud(ax, step, fig, reflected_points, figs_path, name='reflected', color='blue')
+    plt.savefig(part_point_cloud_fname)
+    plt.close(fig)
     # ---
 
     # Creates a list with all the filenames to log
