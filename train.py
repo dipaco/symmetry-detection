@@ -274,6 +274,10 @@ def eval_one_epoch(sess, ops, test_writer):
     
     log_string(str(datetime.now()))
     log_string('---- EPOCH %03d EVALUATION ----'%(EPOCH_CNT))
+
+    all_end_points = []
+    all_pred_vals = []
+    all_labels = []
     
     while TEST_DATASET.has_next_batch():
         batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
@@ -292,8 +296,11 @@ def eval_one_epoch(sess, ops, test_writer):
         loss_sum += loss_val
         batch_idx += 1
 
+    all_end_points = np.concatenate(all_end_points, axis=0)
+    all_pred_vals = np.concatenate(all_pred_vals, axis=0)
+    all_labels = np.concatenate(all_labels, axis=0)
     if FLAGS.create_figures:
-        MODEL.create_figures(FLAGS, step, tb_logger, end_points, pred_val, cur_batch_label)
+        MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_pred_vals, all_labels)
     
     log_string('eval mean loss: %f' % (loss_sum / float(batch_idx)))
     EPOCH_CNT += 1
