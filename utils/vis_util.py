@@ -87,12 +87,12 @@ def gen_symmetry_fig(FLAGS, step, dict_points, pred_normal, gt_plane):
     # --- Shows the point cloud and its reflection ---
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    original_point_cloud_fname = _show_point_cloud(ax, step, fig, points, figs_path, name='original', color='blue')
+    original_point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, name='original', color='blue')
     plt.savefig(original_point_cloud_fname)
     plt.close(fig)
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    reflected_point_cloud_fname = _show_point_cloud(ax, step, fig, reflected_points, figs_path, name='reflected', color='blue')
+    reflected_point_cloud_fname = _show_point_cloud(ax, step, fig, reflected_points[idx_to_show, ...], figs_path, name='reflected', color='blue')
     plt.savefig(reflected_point_cloud_fname)
     plt.close(fig)
     # ---
