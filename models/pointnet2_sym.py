@@ -58,6 +58,14 @@ def get_loss(pred_plane, gt_plane, input_points):
 
     y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
     y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
+
+    # creates the reflexion matrix
+    T = tf.eye(3) - 2 * tf.einsum('bi, bj -> bij', y_pred, y_pred)
+
+    # reflects the original point cloud
+    reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points['l0_xyz'])
+    input_points['reflected_l0_xyz'] = reflected_point_cloud
+
     cosine_similarity = tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1))
     cosine_similarity_loss = 1 - tf.reduce_mean(cosine_similarity)
     average_error_angle = tf.reduce_mean(tf.math.acos(cosine_similarity) * 180 / math.pi)
