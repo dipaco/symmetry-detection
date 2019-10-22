@@ -1,4 +1,0 @@
-[submodule "dependencies/pointnet-autoencoder"]
-	path = dependencies/pointnet-autoencoder
-	url = https://github.com/charlesq34/pointnet-autoencoder.git
-	branch = master
