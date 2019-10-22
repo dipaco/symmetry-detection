@@ -276,6 +276,7 @@ def eval_one_epoch(sess, ops, test_writer):
     log_string('---- EPOCH %03d EVALUATION ----'%(EPOCH_CNT))
 
     all_end_points = []
+    all_reflected_points = []
     all_pred_vals = []
     all_labels = []
     
@@ -292,7 +293,8 @@ def eval_one_epoch(sess, ops, test_writer):
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
-        all_end_points.append(end_points)
+        all_end_points.append(end_points['l0_xyz'])
+        all_reflected_points.append(end_points['reflected_l0_xyz'])
         all_pred_vals.append(pred_val)
         all_labels.append(cur_batch_label)
 
@@ -301,10 +303,11 @@ def eval_one_epoch(sess, ops, test_writer):
         batch_idx += 1
 
     all_end_points = np.concatenate(all_end_points, axis=0)
+    all_reflected_points = np.concatenate(all_reflected_points, axis=0)
     all_pred_vals = np.concatenate(all_pred_vals, axis=0)
     all_labels = np.concatenate(all_labels, axis=0)
     if FLAGS.create_figures:
-        MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_pred_vals, all_labels)
+        MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_reflected_points, all_pred_vals, all_labels)
     
     log_string('eval mean loss: %f' % (loss_sum / float(batch_idx)))
     EPOCH_CNT += 1

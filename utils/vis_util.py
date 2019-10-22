@@ -5,10 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-def gen_symmetry_fig(FLAGS, step, dict_points, pred_normal, gt_plane, idx_to_show=None):
-
-    points = dict_points['l0_xyz']
-    reflected_points = dict_points['reflected_l0_xyz']
+def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plane, idx_to_show=None):
 
     figs_path = os.path.join(FLAGS.log_dir, 'figs')
     if not os.path.exists(figs_path):

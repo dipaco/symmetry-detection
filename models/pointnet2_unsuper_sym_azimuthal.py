@@ -84,8 +84,8 @@ def get_loss(pred_plane, gt_plane, input_points):
     return chamfer_loss
 
 
-def create_figures(FLAGS, step, tb_logger, points, pred_plane, gt_plane):
-    figs_filenames = vis_util.gen_symmetry_fig(FLAGS, step, points, pred_plane, gt_plane)
+def create_figures(FLAGS, step, tb_logger, points, reflected_points, pred_plane, gt_plane):
+    figs_filenames = vis_util.gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_plane, gt_plane)
     tb_logger.log_images('figs', step, images_filenames=figs_filenames)
 
 
