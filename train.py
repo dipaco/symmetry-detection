@@ -292,6 +292,10 @@ def eval_one_epoch(sess, ops, test_writer):
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
+        all_end_points.append(end_points)
+        all_pred_vals.append(pred_val)
+        all_labels.append(cur_batch_label)
+
         test_writer.add_summary(summary, step)
         loss_sum += loss_val
         batch_idx += 1
