@@ -91,7 +91,7 @@ def gen_symmetry_fig(FLAGS, step, dict_points, pred_normal, gt_plane):
     plt.savefig(original_point_cloud_fname)
     plt.close(fig)
     reflected_point_cloud_fname = _show_point_cloud(ax, step, fig, reflected_points, figs_path, name='reflected', color='blue')
-    plt.savefig(reflected_points)
+    plt.savefig(reflected_point_cloud_fname)
     plt.close(fig)
     # ---
 
