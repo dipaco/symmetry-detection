@@ -61,8 +61,9 @@ def get_loss(pred_plane, gt_plane, input_points):
     # creates the reflexion matrix
     T = tf.eye(3) - 2 * tf.einsum('bi, bj -> bij', pred_plane, pred_plane)
 
-    # reflects the orginal point cloud
+    # reflects the original point cloud
     reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points['l0_xyz'])
+    input_points['reflected_l0_xyz'] = reflected_point_cloud
 
     dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
 

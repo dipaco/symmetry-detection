@@ -5,7 +5,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
+def gen_symmetry_fig(FLAGS, step, dict_points, pred_normal, gt_plane):
+
+    points = dict_points['l0_xyz']
+    reflected_points = dict_points['relected_l0_xyz']
 
     figs_path = os.path.join(FLAGS.log_dir, 'figs')
     if not os.path.exists(figs_path):
@@ -81,8 +84,15 @@ def gen_symmetry_fig(FLAGS, step, points, pred_normal, gt_plane):
     plt.close(fig)
     # ---
 
+    # --- Shows the point cloud and its reflection ---
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    original_point_cloud_fname = _show_point_cloud(ax, step, fig, points, figs_path, name='original', color='blue')
+    reflected_point_cloud_fname = _show_point_cloud(ax, step, fig, reflected_points, figs_path, name='reflected', color='blue')
+    # ---
+
     # Creates a list with all the filenames to log
-    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname]
+    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname, original_point_cloud_fname, reflected_point_cloud_fname]
 
     return figures_filenames
 
