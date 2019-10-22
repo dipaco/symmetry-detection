@@ -123,6 +123,9 @@ def get_bn_decay(batch):
     return bn_decay
 
 def train():
+
+    global EPOCH_CNT
+
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
             pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
@@ -192,6 +195,7 @@ def train():
 
         best_acc = -1
         for epoch in range(cur_epoch, MAX_EPOCH):
+            EPOCH_CNT = epoch
             log_string('**** EPOCH %03d ****' % (epoch))
             sys.stdout.flush()
              
@@ -223,8 +227,6 @@ def train_one_epoch(sess, ops, train_writer):
     
     log_string(str(datetime.now()))
 
-    tb_logger = tensorboard_logging.Logger(train_writer)
-
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
@@ -251,9 +253,6 @@ def train_one_epoch(sess, ops, train_writer):
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
 
-            if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, end_points, pred_val, cur_batch_label)
-
         batch_idx += 1
 
     TRAIN_DATASET.reset()
@@ -262,6 +261,8 @@ def eval_one_epoch(sess, ops, test_writer):
     """ ops: dict mapping from string to tf ops """
     global EPOCH_CNT
     is_training = False
+
+    tb_logger = tensorboard_logging.Logger(test_writer)
 
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TEST_DATASET.num_channel()))
@@ -284,12 +285,15 @@ def eval_one_epoch(sess, ops, test_writer):
         feed_dict = {ops['pointclouds_pl']: cur_batch_data,
                      ops['labels_pl']: cur_batch_label,
                      ops['is_training_pl']: is_training}
-        summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
-            ops['loss'], ops['pred']], feed_dict=feed_dict)
+        summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
+            ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
         test_writer.add_summary(summary, step)
         loss_sum += loss_val
         batch_idx += 1
+
+    if FLAGS.create_figures:
+        MODEL.create_figures(FLAGS, step, tb_logger, end_points, pred_val, cur_batch_label)
     
     log_string('eval mean loss: %f' % (loss_sum / float(batch_idx)))
     EPOCH_CNT += 1
