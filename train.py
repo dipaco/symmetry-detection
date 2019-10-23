@@ -227,6 +227,8 @@ def train_one_epoch(sess, ops, train_writer):
     
     log_string(str(datetime.now()))
 
+    tb_logger = tensorboard_logging.Logger(train_writer)
+
     # Make sure batch data is of same size
     cur_batch_data = np.zeros((BATCH_SIZE,NUM_POINT,TRAIN_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
@@ -252,6 +254,10 @@ def train_one_epoch(sess, ops, train_writer):
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
+
+            if FLAGS.create_figures:
+                MODEL.create_figures(FLAGS, step, tb_logger, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val,
+                                     cur_batch_label)
 
         batch_idx += 1
 
