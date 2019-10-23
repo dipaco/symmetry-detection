@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plane, idx_to_show=None):
+def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plane, idx_to_show=None, show_gt_arrows=False):
 
     figs_path = os.path.join(FLAGS.log_dir, 'figs')
     if not os.path.exists(figs_path):
@@ -23,8 +23,9 @@ def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plan
     batch_plane_normals_fname = os.path.join(figs_path, 'step_{}_batch_plane_normals.png'.format(step))
     for i in range(pred_normal.shape[0]):
         _add_vector_arrow(ax, pred_normal[i, ...], color='green')
-    for i in range(gt_plane.shape[0]):
-        _add_vector_arrow(ax, gt_plane[i, ...], color='red')
+    if show_gt_arrows:
+        for i in range(gt_plane.shape[0]):
+            _add_vector_arrow(ax, gt_plane[i, ...], color='red')
     _set_unit_limits_in_3d_plot(ax)
     plt.savefig(batch_plane_normals_fname)
     plt.close(fig)
