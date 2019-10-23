@@ -308,10 +308,6 @@ def eval_one_epoch(sess, ops, test_writer):
         loss_sum += loss_val
         batch_idx += 1
 
-    all_end_points = np.concatenate(all_end_points, axis=0)
-    all_reflected_points = np.concatenate(all_reflected_points, axis=0)
-    all_pred_vals = np.concatenate(all_pred_vals, axis=0)
-    all_labels = np.concatenate(all_labels, axis=0)
     if FLAGS.create_figures:
         MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_reflected_points, all_pred_vals, all_labels)
     
