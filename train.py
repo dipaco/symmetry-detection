@@ -281,10 +281,10 @@ def eval_one_epoch(sess, ops, test_writer):
     log_string(str(datetime.now()))
     log_string('---- EPOCH %03d EVALUATION ----'%(EPOCH_CNT))
 
-    all_end_points = []
-    all_reflected_points = []
-    all_pred_vals = []
-    all_labels = []
+    all_end_points = None
+    all_reflected_points = None
+    all_pred_vals = None
+    all_labels = None
     
     while TEST_DATASET.has_next_batch():
         batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
@@ -299,22 +299,21 @@ def eval_one_epoch(sess, ops, test_writer):
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
-        #all_end_points.append(end_points['l0_xyz'])
-        #all_reflected_points.append(end_points['reflected_l0_xyz'])
-        #all_pred_vals.append(pred_val)
-        #all_labels.append(cur_batch_label)
+        all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
+        all_reflected_points = end_points['reflected_l0_xyz'] if all_reflected_points is None else np.vstack((all_reflected_points, end_points['reflected_l0_xyz']))
+        all_pred_vals = pred_val if all_pred_vals is None else np.vstack((all_pred_vals, pred_val))
+        all_labels = cur_batch_label if all_labels is None else np.vstack((all_labels, cur_batch_label))
 
         test_writer.add_summary(summary, step)
         loss_sum += loss_val
         batch_idx += 1
 
-        #all_end_points = np.concatenate(all_end_points, axis=0)
-        #all_reflected_points = np.concatenate(all_reflected_points, axis=0)
-        #all_pred_vals = np.concatenate(all_pred_vals, axis=0)
-        #all_labels = np.concatenate(all_labels, axis=0)
-        if (batch_idx + 1) % 50 == 0:
-            if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
+    all_end_points = np.concatenate(all_end_points, axis=0)
+    all_reflected_points = np.concatenate(all_reflected_points, axis=0)
+    all_pred_vals = np.concatenate(all_pred_vals, axis=0)
+    all_labels = np.concatenate(all_labels, axis=0)
+    if FLAGS.create_figures:
+        MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_reflected_points, all_pred_vals, all_labels)
     
     log_string('eval mean loss: %f' % (loss_sum / float(batch_idx)))
     EPOCH_CNT += 1
