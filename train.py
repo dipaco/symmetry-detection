@@ -212,7 +212,7 @@ def train():
                 print('Time out termination.')
                 exit()
 
-            elif epoch % 10 == 0:   # Save the variables to disk.
+            elif (epoch + 1) % 10 == 0:   # Save the variables to disk.
                 save_progress(global_step, saver, sess)
 
 
