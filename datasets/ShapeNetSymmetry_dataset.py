@@ -52,7 +52,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
     def set_testfiles(self, files):
         self.testfiles = files
 
-    def build_h5_file(self, h5_filename, files, ext='obj', rotate=False, rot_type='z', objs_per_file=1024):
+    def build_h5_file(self, h5_filename, files, ext='obj', rotate=False, rot_type='z', objs_per_file=1024, check_symmetry=False):
 
         init_time = time.time()
 
@@ -101,20 +101,26 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                     continue
                 else:
 
-                    tr1 = np.transpose(mesh.triangles, axes=[0, 2, 1])[None, ...]
-                    norm = mesh.face_normals[None, ...]
+                    # Check if the mesh is symmetric, otherwise assume that the mesh symmetric with respect to plane YZ
+                    if check_symmetry:
 
-                    r = tf_get_cyl_rep(triangle, normals, (32, 32), init_theta=tf.constant(np.pi / 2.0))
+                        tr1 = np.transpose(mesh.triangles, axes=[0, 2, 1])[None, ...]
+                        norm = mesh.face_normals[None, ...]
 
-                    res = sess.run(r, feed_dict={triangle: tr1.astype(np.float32), normals: norm})
-                    res = res[0, ...]
-                    res /= max(np.sqrt((res**2).sum()), 1e-5)
-                    flipped_res = np.flip(res, axis=1)
+                        # Creates a cylindrical representation of the objects to check the symmetry
+                        r = tf_get_cyl_rep(triangle, normals, (32, 32), init_theta=tf.constant(np.pi / 2.0))
 
-                    corr = np.sum(res*flipped_res)
+                        res = sess.run(r, feed_dict={triangle: tr1.astype(np.float32), normals: norm})
+                        res = res[0, ...]
+                        res /= max(np.sqrt((res**2).sum()), 1e-5)
+                        flipped_res = np.flip(res, axis=1)
 
-                    if 1 - corr > 2e-2:
-                        continue
+                        corr = np.sum(res*flipped_res)
+
+                        if 1 - corr > 2e-2:
+                            continue
+                        else:
+                            num_valid_meshes += 1
                     else:
                         num_valid_meshes += 1
 
@@ -145,7 +151,8 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                 all_filenames.append(filename)
 
                 # copies the mesh file
-                self.copy_mesh(f, os.path.join(os.path.dirname(h5_filename), 'dataset_symmetric_copy'))
+                if check_symmetry:
+                    self.copy_mesh(f, os.path.join(os.path.dirname(h5_filename), 'dataset_symmetric_copy'))
 
                 # exits after one hour of running
                 if time.time() - init_time > self.MAX_RUNNING_TIME or num_valid_meshes >= objs_per_file:
@@ -277,7 +284,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         copyfile(f, os.path.join(output_folder, els[-1]))
 
     def generate_h5_train(self, tfrecord_path=None, shuffle_data=True, ext='off', rotate=False, offset=0,
-                                file_counter=0, rot_type='z', objs_per_file=1024):
+                                file_counter=0, rot_type='z', objs_per_file=1024, check_symmetry=False):
         self.trainfiles = self.shuffle() if shuffle_data else self.trainfiles
 
         if tfrecord_path is None:
@@ -285,16 +292,16 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         else:
             h5_filename = tfrecord_path + '/train' + str(self.num_samples) + '_{}.h5'.format(file_counter)
 
-        return self.build_h5_file(h5_filename, self.trainfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file)
+        return self.build_h5_file(h5_filename, self.trainfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file, check_symmetry=check_symmetry)
 
     def generate_h5_test(self, tfrecord_path=None, ext='off', rotate=False, offset=0, file_counter=0,
-                               rot_type='z', objs_per_file=1024):
+                               rot_type='z', objs_per_file=1024, check_symmetry=False):
         if tfrecord_path is None:
             h5_filename = self.basedir + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
         else:
             h5_filename = tfrecord_path + '/test' + str(self.num_samples) + '_{}.h5'.format(file_counter)
 
-        return self.build_h5_file(h5_filename, self.testfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file)
+        return self.build_h5_file(h5_filename, self.testfiles[offset:], ext, rotate, rot_type=rot_type, objs_per_file=objs_per_file, check_symmetry=check_symmetry)
 
 
 def str2bool(v):
@@ -321,6 +328,10 @@ if __name__ == '__main__':
     parser.add_argument('--make-a-copy', type=str, help='Copy the symmetric files.', default='True')
     parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=1024)
     parser.add_argument('--dataset_type', type=str, help='Type of dataset: (tfrecord or h5).', default='h5')
+    parser.add_argument('--check_symmetry', action='store_true', help='Whether to check if the objects have ' +
+                                                                      'a plane of symmetry. The plane of symmetry ' +
+                                                                      'will be assumed to be plane YZ if the option' +
+                                                                      'is not present.')
 
     args = parser.parse_args()
 
@@ -365,7 +376,8 @@ if __name__ == '__main__':
                                                 offset=train_offset,
                                                 file_counter=train_file_counter,
                                                 rot_type=args.rot_type,
-                                                objs_per_file=args.num_objs_per_file)
+                                                objs_per_file=args.num_objs_per_file,
+                                                check_symmetry=args.check_symmetry)
             train_done = train_offset >= len(dataset.trainfiles)
 
         if train_done and not test_done:
@@ -374,7 +386,8 @@ if __name__ == '__main__':
                                              offset=test_offset,
                                              file_counter=test_file_counter,
                                              rot_type=args.rot_type,
-                                             objs_per_file=args.num_objs_per_file)
+                                             objs_per_file=args.num_objs_per_file,
+                                             check_symmetry=args.check_symmetry)
             test_file_counter += 1
         test_done = test_offset >= len(dataset.testfiles)
 
@@ -388,11 +401,11 @@ if __name__ == '__main__':
         train_file_counter = 0
         test_file_counter = 0
 
-        train_offset = generation_function_train(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), shuffle_data=False, rot_type=args.rot_type, objs_per_file=args.num_objs_per_file)
+        train_offset = generation_function_train(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), shuffle_data=False, rot_type=args.rot_type, objs_per_file=args.num_objs_per_file, check_symmetry=args.check_symmetry)
         train_done = train_offset >= len(dataset.trainfiles)
 
         if train_done:
-            test_offset = generation_function_test(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), rot_type=args.rot_type, objs_per_file=args.num_objs_per_file)
+            test_offset = generation_function_test(args.save_path, ext=args.ext, rotate=str2bool(args.rotate), rot_type=args.rot_type, objs_per_file=args.num_objs_per_file, check_symmetry=args.check_symmetry)
 
         test_done = test_offset >= len(dataset.testfiles)
 
