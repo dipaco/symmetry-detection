@@ -29,20 +29,23 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         super(ShapeNetSymmetryDataset, self).__init__(basedir, num_samples)
         self.max_num_triangles = max_num_triangles
 
-    def _get_filenames(self, mode, ext, synset_id):
+    def _get_filenames(self, mode, ext, synset_id, use_all_cateogories=False):
         if self._data_filenames is None:
-            self._data_filenames = self.shuffle(glob(os.path.join(self.basedir, '{}/*/models/model_normalized.{}'.format(synset_id, ext)), recursive=True))
+            if use_all_cateogories:
+                self._data_filenames = self.shuffle(glob(os.path.join(self.basedir, '*/*/models/model_normalized.{}'.format(ext)), recursive=True))
+            else:
+                self._data_filenames = self.shuffle(glob(os.path.join(self.basedir, '{}/*/models/model_normalized.{}'.format(synset_id, ext)), recursive=True))
             return self._data_filenames
         else:
             return self._data_filenames
 
-    def get_trainfiles(self, ext='ply', synset_id='*'):
-        files = self._get_filenames('train', ext, synset_id)
+    def get_trainfiles(self, ext='ply', synset_id='*', use_all_cateogories=False):
+        files = self._get_filenames('train', ext, synset_id, use_all_cateogories=use_all_cateogories)
         num_objects = len(files)
         self.trainfiles = files[:int(0.80 * num_objects)]
 
-    def get_testfiles(self, ext='ply', synset_id='*'):
-        files = self._get_filenames('test', ext, synset_id)
+    def get_testfiles(self, ext='ply', synset_id='*', use_all_cateogories=False):
+        files = self._get_filenames('test', ext, synset_id, use_all_cateogories=use_all_cateogories)
         num_objects = len(files)
         self.testfiles = files[int(0.80 * num_objects):]
 
@@ -328,6 +331,7 @@ if __name__ == '__main__':
     parser.add_argument('--make-a-copy', type=str, help='Copy the symmetric files.', default='True')
     parser.add_argument('--num_objs_per_file', type=int, help='number of h5 files to generate', default=1024)
     parser.add_argument('--dataset_type', type=str, help='Type of dataset: (tfrecord or h5).', default='h5')
+    parser.add_argument('--use_all_categories', action='store_true', help='Uses all object categories in shapenet.')
     parser.add_argument('--check_symmetry', action='store_true', help='Whether to check if the objects have ' +
                                                                       'a plane of symmetry. The plane of symmetry ' +
                                                                       'will be assumed to be plane YZ if the option' +
@@ -393,8 +397,8 @@ if __name__ == '__main__':
 
     else:
         # get a list of training files
-        dataset.get_trainfiles(ext=args.ext, synset_id=args.synset_id)
-        dataset.get_testfiles(ext=args.ext, synset_id=args.synset_id)
+        dataset.get_trainfiles(ext=args.ext, synset_id=args.synset_id, use_all_cateogories=args.use_all_categories)
+        dataset.get_testfiles(ext=args.ext, synset_id=args.synset_id, use_all_cateogories=args.use_all_categories)
 
         train_offset = 0
         test_offset = 0
