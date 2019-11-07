@@ -68,9 +68,17 @@ def load_h5(h5_filename):
             ), axis=1
         )
 
-    cut_plane = f['cut_plane'][:]
+    cut_plane_10 = f['cut_plane_10'][:]
+    cut_plane_20 = f['cut_plane_20'][:]
+    cut_plane_30 = f['cut_plane_30'][:]
 
-    label = np.concatenate((symmetry_plane[:, None, :], cut_plane[:, None, :]), axis=1)
+    label = np.concatenate(
+        (
+            symmetry_plane[:, None, :],
+            cut_plane_10[:, None, :],
+            cut_plane_20[:, None, :],
+            cut_plane_30[:, None, :]
+        ), axis=1)
 
     f.close()
     return (data, label)

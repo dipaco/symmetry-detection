@@ -58,6 +58,7 @@ OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 DATASET_DIR = FLAGS.dataset_dir
+NUM_POINT_CLOUDS = 4
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -230,8 +231,8 @@ def train_one_epoch(sess, ops, train_writer):
     tb_logger = tensorboard_logging.Logger(train_writer)
 
     # Make sure batch data is of same size
-    cur_batch_points = np.zeros((BATCH_SIZE, 4, NUM_POINT,TRAIN_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE, 2,  3))
+    cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT_CLOUDS, NUM_POINT,TRAIN_DATASET.num_channel()))
+    cur_batch_label = np.zeros((BATCH_SIZE, NUM_POINT_CLOUDS,  3))
 
     loss_sum = 0
     batch_idx = 0
@@ -271,8 +272,8 @@ def eval_one_epoch(sess, ops, test_writer):
     tb_logger = tensorboard_logging.Logger(test_writer)
 
     # Make sure batch data is of same size
-    cur_batch_points = np.zeros((BATCH_SIZE, 4, NUM_POINT,TEST_DATASET.num_channel()))
-    cur_batch_label = np.zeros((BATCH_SIZE, 2, 3))
+    cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT_CLOUDS, NUM_POINT,TEST_DATASET.num_channel()))
+    cur_batch_label = np.zeros((BATCH_SIZE, NUM_POINT_CLOUDS, 3))
 
     loss_sum = 0
     batch_idx = 0

@@ -53,9 +53,9 @@ def rotate_point_cloud_z(batch_data, labels=None):
     """ Randomly rotate the point clouds to augument the dataset
         rotation is per shape based along up direction
         Input:
-          BxNx3 array, original batch of point clouds
+          BxKxNx3 array, original batch of point clouds
         Return:
-          BxNx3 array, rotated batch of point clouds
+          BxKxNx3 array, rotated batch of point clouds
     """
     rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
     if labels is not None:
