@@ -64,7 +64,7 @@ def gen_symmetry_fig(FLAGS, step, all_points, cut_planes, points, reflected_poin
     ax = fig.add_subplot(111, projection='3d')
 
     _add_plane(ax, cut_planes[idx_to_show, 0:3], color='red', alpha=0.1, show_normal=True, d=cut_planes[idx_to_show, 3])
-    a = cut_planes[idx_to_show, 0:3] @ all_points[idx_to_show, ...] + cut_planes[idx_to_show, 3]
+    a = all_points[idx_to_show, ...] @ cut_planes[idx_to_show, 0:3] + cut_planes[idx_to_show, 3]
 
     right_side = all_points[idx_to_show, np.where(a > 0)[0], :]
     left_side = all_points[idx_to_show, np.where(a < 0)[0], :]
