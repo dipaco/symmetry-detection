@@ -54,14 +54,23 @@ def gen_symmetry_fig(FLAGS, step, all_points, cur_batch_cut_plane, points, refle
               r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
+    point_cloud_fname = _show_point_cloud(ax, step, fig, all_points[idx_to_show, ...], figs_path, 'single')
+    plt.savefig(point_cloud_fname)
+    plt.close(fig)
+    # ------
+
+    # --- Shows the  incomplete point cloud ---
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
     a = cur_batch_cut_plane[idx_to_show, 0:3] @ all_points[idx_to_show, ...] + cur_batch_cut_plane[idx_to_show, 3]
 
     right_side = all_points[idx_to_show, np.where(a > 0)[0], :]
     left_side = all_points[idx_to_show, np.where(a < 0)[0], :]
 
-    point_cloud_fname = _show_point_cloud(ax, step, fig, left_side, figs_path, 'single', color='blue')
-    point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'single', color='violet')
-    plt.savefig(point_cloud_fname)
+    incomplete_point_cloud_fname = _show_point_cloud(ax, step, fig, left_side, figs_path, 'incomplete', color='blue')
+    incomplete_point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'incomplete', color='violet')
+    plt.savefig(incomplete_point_cloud_fname)
     plt.close(fig)
     # ------
 
@@ -105,7 +114,7 @@ def gen_symmetry_fig(FLAGS, step, all_points, cur_batch_cut_plane, points, refle
     # ---
 
     # Creates a list with all the filenames to log
-    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname, original_point_cloud_fname, reflected_point_cloud_fname]
+    figures_filenames = [point_cloud_fname, batch_plane_normals_fname, part_point_cloud_fname, original_point_cloud_fname, reflected_point_cloud_fname, incomplete_point_cloud_fname]
 
     return figures_filenames
 
