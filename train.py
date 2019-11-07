@@ -314,6 +314,7 @@ def eval_one_epoch(sess, ops, test_writer):
         all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
         all_reflected_points = end_points['reflected_l0_xyz'] if all_reflected_points is None else np.vstack((all_reflected_points, end_points['reflected_l0_xyz']))
         all_pred_vals = pred_val if all_pred_vals is None else np.vstack((all_pred_vals, pred_val))
+        all_labels = cur_batch_label if all_labels is None else np.vstack((all_labels, cur_batch_label))
         all_cut_planes = cur_batch_cut_plane if all_cut_planes is None else np.vstack((all_cut_planes, cur_batch_cut_plane))
 
         test_writer.add_summary(summary, step)
