@@ -185,6 +185,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         print('Num. processed meshes: {}'.format(num_valid_meshes))
         self._write_h5_data(h5_filename,
                             points=all_points,
+                            incomplete_point_clouds=incomplete_point_clouds,
                             face_normals=all_face_normals,
                             triangles=all_triangles,
                             symmetry_planes=all_symmetry_planes,
@@ -205,7 +206,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
 
         hf.close()
 
-    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=True):
+    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=False):
 
         # randomly generates the normal to the plane
         v = np.random.uniform(-1.0, 1.0, 3)
