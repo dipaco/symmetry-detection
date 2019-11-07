@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plane, idx_to_show=None, show_gt_arrows=False):
+def gen_symmetry_fig(FLAGS, step, cur_batch_gt_points, cur_batch_cut_plane, points, reflected_points, pred_normal, gt_plane, idx_to_show=None, show_gt_arrows=False):
 
     figs_path = os.path.join(FLAGS.log_dir, 'figs')
     if not os.path.exists(figs_path):
@@ -44,8 +44,8 @@ def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plan
     cos_theta = np.sum(normal * normal_est)
     theta = np.arccos(np.abs(cos_theta)) * 180 / np.pi
 
-    _add_plane(ax, normal, color='red', alpha=0.2)
-    _add_plane(ax, normal_est, color='green', alpha=0.2)
+    _add_plane(ax, normal, color='red', alpha=0.1)
+    _add_plane(ax, normal_est, color='green', alpha=0.1)
 
     # Shows the cosine of the angle between planes
     plt.rc('text', usetex=True)
@@ -54,7 +54,13 @@ def gen_symmetry_fig(FLAGS, step, points, reflected_points, pred_normal, gt_plan
               r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
-    point_cloud_fname = _show_point_cloud(ax, step, fig, points[idx_to_show, ...], figs_path, 'single')
+    a = cur_batch_gt_points[idx_to_show, ...] @ cur_batch_cut_plane[idx_to_show, 0:3] + cur_batch_cut_plane[idx_to_show, 3]
+
+    right_side = cur_batch_gt_points[idx_to_show, np.where(a > 0)[0], :]
+    left_side = cur_batch_gt_points[idx_to_show, np.where(a < 0)[0], :]
+
+    point_cloud_fname = _show_point_cloud(ax, step, fig, left_side, figs_path, 'single', color='blue')
+    point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'single', color='violet')
     plt.savefig(point_cloud_fname)
     plt.close(fig)
     # ------

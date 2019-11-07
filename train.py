@@ -58,7 +58,7 @@ OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 DATASET_DIR = FLAGS.dataset_dir
-NUM_POINT_CLOUDS = 4
+PC_IDX = 3
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -231,8 +231,10 @@ def train_one_epoch(sess, ops, train_writer):
     tb_logger = tensorboard_logging.Logger(train_writer)
 
     # Make sure batch data is of same size
-    cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT,TRAIN_DATASET.num_channel()))
+    cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
+    cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE,  3))
+    cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
     loss_sum = 0
     batch_idx = 0
@@ -240,8 +242,10 @@ def train_one_epoch(sess, ops, train_writer):
         batch_data, batch_label = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
 
         bsize = batch_data.shape[0]
-        cur_batch_points[0:bsize,...] = batch_data[:, 3, ...]
+        cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
+        cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
+        cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
@@ -257,7 +261,7 @@ def train_one_epoch(sess, ops, train_writer):
             loss_sum = 0
 
             if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
+                MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
 
         batch_idx += 1
 
@@ -271,8 +275,11 @@ def eval_one_epoch(sess, ops, test_writer):
     tb_logger = tensorboard_logging.Logger(test_writer)
 
     # Make sure batch data is of same size
+
+    cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT,TEST_DATASET.num_channel()))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
+    cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
     loss_sum = 0
     batch_idx = 0
@@ -281,17 +288,21 @@ def eval_one_epoch(sess, ops, test_writer):
     log_string(str(datetime.now()))
     log_string('---- EPOCH %03d EVALUATION ----'%(EPOCH_CNT))
 
+    all_gt_points = None
     all_end_points = None
     all_reflected_points = None
     all_pred_vals = None
     all_labels = None
+    all_cut_planes = None
     
     while TEST_DATASET.has_next_batch():
         batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
         bsize = batch_data.shape[0]
         # for the last batch in the epoch, the bsize:end are from last batch
-        cur_batch_points[0:bsize,...] = batch_data[:, 3, ...]
+        cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
+        cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
+        cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
@@ -299,17 +310,18 @@ def eval_one_epoch(sess, ops, test_writer):
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
+        all_gt_points = cur_batch_gt_points if cur_batch_gt_points is None else np.vstack((all_gt_points, cur_batch_gt_points))
         all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
         all_reflected_points = end_points['reflected_l0_xyz'] if all_reflected_points is None else np.vstack((all_reflected_points, end_points['reflected_l0_xyz']))
         all_pred_vals = pred_val if all_pred_vals is None else np.vstack((all_pred_vals, pred_val))
-        all_labels = cur_batch_label if all_labels is None else np.vstack((all_labels, cur_batch_label))
+        all_cut_planes = cur_batch_cut_plane if all_cut_planes is None else np.vstack((all_cut_planes, cur_batch_cut_plane))
 
         test_writer.add_summary(summary, step)
         loss_sum += loss_val
         batch_idx += 1
 
     if FLAGS.create_figures:
-        MODEL.create_figures(FLAGS, step, tb_logger, all_end_points, all_reflected_points, all_pred_vals, all_labels)
+        MODEL.create_figures(FLAGS, step, tb_logger, all_gt_points, all_cut_planes, all_end_points, all_reflected_points, all_pred_vals, all_labels)
     
     log_string('eval mean loss: %f' % (loss_sum / float(batch_idx)))
     EPOCH_CNT += 1
