@@ -212,10 +212,10 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         v /= np.linalg.norm(v)
         v = v[:, None]
 
-        m = 20
+        m = 50
         t1 = 0.0
         t2 = 1.0
-        for i in range(1, m):
+        for i in range(0, m + 1):
 
             d = i * 1 / m
             a = points @ v - d
@@ -250,7 +250,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             plt.ylim([-1, 1])
             plt.xlim([-1, 1])
             ax.set_zlim([-1, 1])
-            plt.title(f'missing parts: {r}\nt1:{t1} t2:{t2}, i:{i}')
+            plt.title(f'missing parts: {r}\nt1:{t1} t2:{t2}')
 
             plt.show()
 
