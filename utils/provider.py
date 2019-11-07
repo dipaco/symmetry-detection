@@ -59,7 +59,7 @@ def rotate_point_cloud_z(batch_data, labels=None):
     """
     rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
     if labels is not None:
-        labels = np.zeros(labels.shape, dtype=np.float32)
+        rotated_labels = np.zeros(labels.shape, dtype=np.float32)
 
     for k in range(batch_data.shape[0]):
         rotation_angle = np.random.uniform() * 2 * np.pi
@@ -73,10 +73,10 @@ def rotate_point_cloud_z(batch_data, labels=None):
         rotated_data[k, ...] = np.dot(pc.reshape((-1, 3)), rotation_matrix).reshape(pc.shape)
         if labels is not None:
             lb = labels[k, :, 0:3] # labels of one instance in the batch
-            labels[k, :, 0:3] = np.dot(lb.reshape((-1, 3)), rotation_matrix).reshape(lb.shape)
+            rotated_labels[k, :, 0:3] = np.dot(lb.reshape((-1, 3)), rotation_matrix).reshape(lb.shape)
 
     if labels is not None:
-        return rotated_data, labels
+        return rotated_data, rotated_labels
     else:
         return rotated_data
 
