@@ -240,7 +240,7 @@ def train_one_epoch(sess, ops, train_writer):
         batch_data, batch_label = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
 
         bsize = batch_data.shape[0]
-        cur_batch_points[0:bsize,...] = batch_data[:, 2, ...]
+        cur_batch_points[0:bsize,...] = batch_data[:, 3, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
@@ -291,7 +291,7 @@ def eval_one_epoch(sess, ops, test_writer):
         batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
         bsize = batch_data.shape[0]
         # for the last batch in the epoch, the bsize:end are from last batch
-        cur_batch_points[0:bsize,...] = batch_data[:, 2, ...]
+        cur_batch_points[0:bsize,...] = batch_data[:, 3, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
