@@ -14,11 +14,14 @@ import numpy as np
 import tensorflow as tf
 import symcomp17_dataset
 import np_util
+import vis_util
 from glob import glob
 from pathlib import Path
 from tf_util import tf_get_cyl_rep
 from misc import splitall
 from shutil import copyfile
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
@@ -64,6 +67,11 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             all_face_normals = []
             all_triangles = []
             all_points = []
+            incomplete_point_clouds = {
+                10: {'points': [], 'plane': []},
+                20: {'points': [], 'plane': []},
+                30: {'points': [], 'plane': []}
+            }
             all_symmetry_planes = []
             all_filenames = []
 
@@ -145,8 +153,14 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                 points = self._sample_faces(mesh)
 
                 filename, _ = os.path.splitext(os.path.basename(f))
-                #example = self.to_tfrecord(face_normals, triangles, points, symmetry_plane, w, num_planes, filename)
-                #writer.write(example.SerializeToString())
+
+                # Remove up to the x percent of points by chopping the point cloud with a random plane
+                # the value of 'key' corresponds to the percentage of data we want to remove from the point cloud
+                for key in incomplete_point_clouds.keys():
+                    aux_points, aux_plane = self._remove_parts(points, symmetry_plane, t_upper=key/100)
+                    incomplete_point_clouds[key]['points'].append(aux_points)
+                    incomplete_point_clouds[key]['plane'].append(aux_plane)
+
                 all_face_normals.append(face_normals)
                 all_triangles.append(triangles)
                 all_points.append(points)
@@ -161,6 +175,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                 if time.time() - init_time > self.MAX_RUNNING_TIME or num_valid_meshes >= objs_per_file:
                     self._write_h5_data(h5_filename,
                                         points=all_points,
+                                        incomplete_point_clouds=incomplete_point_clouds,
                                         face_normals=all_face_normals,
                                         triangles=all_triangles,
                                         symmetry_planes=all_symmetry_planes,
@@ -176,14 +191,72 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                             filenames=all_filenames)
         return k + 1
 
-    def _write_h5_data(self, h5_filename, points, face_normals, triangles, symmetry_planes, filenames):
+    def _write_h5_data(self, h5_filename, points, incomplete_point_clouds, face_normals, triangles, symmetry_planes, filenames):
         hf = h5py.File(h5_filename, 'w')
         hf.create_dataset('points', data=np.array(points), compression="gzip", compression_opts=9)
         #hf.create_dataset('face_normals', data=face_normals, compression="gzip", compression_opts=9)
         #hf.create_dataset('triangles', data=np.array(triangles, dtype=object), compression="gzip", compression_opts=9)
         hf.create_dataset('symmetry_planes', data=np.array(symmetry_planes), compression="gzip", compression_opts=9)
         #hf.create_dataset('filenames', data=filenames, compression="gzip", compression_opts=9)
+
+        for key in incomplete_point_clouds.keys():
+            hf.create_dataset(f'points_{key}', data=np.array(incomplete_point_clouds[key]['points']), compression="gzip", compression_opts=9)
+            hf.create_dataset(f'cut_plane_{key}', data=np.array(incomplete_point_clouds[key]['plane']), compression="gzip", compression_opts=9)
+
         hf.close()
+
+    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=False):
+
+        # randomly generates the normal to the plane
+        v = np.random.uniform(-1.0, 1.0, 3)
+        v /= np.linalg.norm(v)
+        v = v[:, None]
+
+        m = 1000
+        t1 = t2 = None
+        for i in range(1, m):
+
+            d = i * 1 / m
+            a = points @ v - d
+
+            right_side = points[np.where(a > 0)[0], :]
+
+            r = right_side.shape[0] / points.shape[0]
+            if t1 is None and r <= t_upper:
+                t1 = d
+
+            if t2 is None and r <= t_lower:
+                t2 = d
+                break
+
+        d = np.random.uniform(t1, t2)
+        a = points @ v - d
+
+        right_side = points[np.where(a > 0)[0], :]
+        left_side = points[np.where(a < 0)[0], :]
+
+        r = right_side.shape[0] / points.shape[0]
+
+        if show:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            vis_util._add_plane(ax, v[:, 0], color='green', alpha=0.1, show_normal=True, d=d)
+            ax.scatter(left_side[:, 0], left_side[:, 1], left_side[:, 2], marker='.', color='blue')
+            ax.scatter(right_side[:, 0], right_side[:, 1], right_side[:, 2], marker='.', color='red')
+            ax.set_xlabel('X Label')
+            ax.set_ylabel('Y Label')
+            ax.set_zlabel('Z Label')
+            plt.ylim([-1, 1])
+            plt.xlim([-1, 1])
+            ax.set_zlim([-1, 1])
+            plt.title(f'missing parts: {r}')
+
+            plt.show()
+
+        new_points = np.zeros_like(points)
+        new_points[:left_side.shape[0], :] = left_side
+        return new_points, np.append(v[:, 0], -d)
+
 
     def build_tfrecord(self, tfrecord_filename, files, ext='obj', rotate=False, rot_type='z'):
 

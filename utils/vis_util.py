@@ -129,7 +129,7 @@ def _show_point_cloud(ax, step, fig, points, figs_folder, name, color='blue'):
     point_cloud_fname = os.path.join(figs_folder, 'step_{}_{}_point_cloud.png'.format(step, name))
     return point_cloud_fname
 
-def _add_plane(ax, normal, color='blue', alpha=0.1, show_normal=True):
+def _add_plane(ax, normal, color='blue', alpha=0.1, show_normal=True, d=0.0):
 
     xx, yy = np.meshgrid(np.linspace(-1, 1, 3), np.linspace(-1, 1, 3))
     zz = np.zeros_like(xx)
@@ -138,9 +138,9 @@ def _add_plane(ax, normal, color='blue', alpha=0.1, show_normal=True):
 
     rot_plane = np.einsum('ij,jp->ip', rot_mat.T, np.vstack((xx.ravel(), yy.ravel(), zz.ravel()))).T
 
-    xx = rot_plane[:, 0].reshape(xx.shape)
-    yy = rot_plane[:, 1].reshape(yy.shape)
-    zz = rot_plane[:, 2].reshape(zz.shape)
+    xx = rot_plane[:, 0].reshape(xx.shape) + d * normal[0]
+    yy = rot_plane[:, 1].reshape(yy.shape) + d * normal[1]
+    zz = rot_plane[:, 2].reshape(zz.shape) + d * normal[2]
 
     ax.plot_surface(xx, yy, zz, alpha=alpha, color=color)
 
