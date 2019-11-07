@@ -310,7 +310,7 @@ def eval_one_epoch(sess, ops, test_writer):
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
-        all_gt_points = cur_batch_gt_points if cur_batch_gt_points is None else np.vstack((all_gt_points, cur_batch_gt_points))
+        all_gt_points = cur_batch_gt_points if all_gt_points is None else np.vstack((all_gt_points, cur_batch_gt_points))
         all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
         all_reflected_points = end_points['reflected_l0_xyz'] if all_reflected_points is None else np.vstack((all_reflected_points, end_points['reflected_l0_xyz']))
         all_pred_vals = pred_val if all_pred_vals is None else np.vstack((all_pred_vals, pred_val))
