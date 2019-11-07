@@ -205,15 +205,16 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
 
         hf.close()
 
-    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=False):
+    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=True):
 
         # randomly generates the normal to the plane
         v = np.random.uniform(-1.0, 1.0, 3)
         v /= np.linalg.norm(v)
         v = v[:, None]
 
-        m = 1000
-        t1 = t2 = None
+        m = 20
+        t1 = 0.0
+        t2 = 1.0
         for i in range(1, m):
 
             d = i * 1 / m
@@ -222,10 +223,10 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             right_side = points[np.where(a > 0)[0], :]
 
             r = right_side.shape[0] / points.shape[0]
-            if t1 is None and r <= t_upper:
+            if r >= t_upper:
                 t1 = d
 
-            if t2 is None and r <= t_lower:
+            if r <= t_lower:
                 t2 = d
                 break
 
@@ -249,7 +250,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             plt.ylim([-1, 1])
             plt.xlim([-1, 1])
             ax.set_zlim([-1, 1])
-            plt.title(f'missing parts: {r}')
+            plt.title(f'missing parts: {r}\nt1:{t1} t2:{t2}, i:{i}')
 
             plt.show()
 
