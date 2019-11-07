@@ -68,10 +68,12 @@ def rotate_point_cloud_z(batch_data, labels=None):
         rotation_matrix = np.array([[cosval, sinval, 0],
                                     [-sinval, cosval, 0],
                                     [0, 0, 1]])
-        shape_pc = batch_data[k, ...]
-        rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
+
+        pc = batch_data[k, ...] # one instance in the batch
+        rotated_data[k, ...] = np.dot(pc.reshape((-1, 3)), rotation_matrix).reshape(pc.shape)
         if labels is not None:
-            labels[k, ...] = np.dot(labels[k, ...].reshape((-1, 3)), rotation_matrix)
+            lb = labels[k, ...] # # labels of one instance in the batch
+            labels[k, ...] = np.dot(lb.reshape((-1, 3)), rotation_matrix).reshape(lb.shape)
 
     if labels is not None:
         return rotated_data, labels
