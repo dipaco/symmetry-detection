@@ -72,8 +72,8 @@ def rotate_point_cloud_z(batch_data, labels=None):
         pc = batch_data[k, ...] # one instance in the batch
         rotated_data[k, ...] = np.dot(pc.reshape((-1, 3)), rotation_matrix).reshape(pc.shape)
         if labels is not None:
-            lb = labels[k, ...] # # labels of one instance in the batch
-            labels[k, ...] = np.dot(lb.reshape((-1, 3)), rotation_matrix).reshape(lb.shape)
+            lb = labels[k, :, 0:3] # labels of one instance in the batch
+            labels[k, :, 0:3] = np.dot(lb.reshape((-1, 3)), rotation_matrix).reshape(lb.shape)
 
     if labels is not None:
         return rotated_data, labels
@@ -191,7 +191,7 @@ def rotate_perturbation_point_cloud(batch_data, angle_sigma=0.06, angle_clip=0.1
                        [0,0,1]])
         R = np.dot(Rz, np.dot(Ry,Rx))
         shape_pc = batch_data[k, ...]
-        rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), R)
+        rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), R).reshape(shape_pc.shape)
     return rotated_data
 
 
