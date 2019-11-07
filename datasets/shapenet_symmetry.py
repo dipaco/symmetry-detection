@@ -29,22 +29,49 @@ if not os.path.exists(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048')):
 def shuffle_data(data, labels):
     """ Shuffle data and labels.
         Input:
-          data: B,N,... numpy array
-          label: B,... numpy array
+          data: B, K, N, ... numpy array
+          label: B, K, ... numpy array
         Return:
           shuffled data, label and shuffle indices
     """
-    idx = np.arange(len(labels))
+    idx = np.arange(labels.shape[0])
     np.random.shuffle(idx)
-    return data[idx, ...], labels[idx], idx
+    return data[idx, ...], labels[idx, ...], idx
 
 def getDataFiles(list_filename):
     return [line.rstrip() for line in open(list_filename)]
 
 def load_h5(h5_filename):
     f = h5py.File(h5_filename, 'r')
-    data = f['points'][:]
-    label = f['symmetry_planes'][:]
+    point_cloud = f['points'][:]
+
+    point_cloud_10 = f['points_10'][:]
+    point_cloud_20 = f['points_20'][:]
+    point_cloud_30 = f['points_30'][:]
+
+    data = np.concatenate(
+        (point_cloud[:, None, ...],
+         point_cloud_10[:, None, ...],
+         point_cloud_20[:, None, ...],
+         point_cloud_30[:, None, ...]
+         ), axis=1)
+
+    symmetry_plane = f['symmetry_planes'][:]
+    symmetry_plane = np.squeeze(symmetry_plane)
+
+    #FIXME: the symmetry plane should have 4 dim as well
+    if symmetry_plane.shape[1] < 4:
+        symmetry_plane = np.concatenate(
+            (
+                symmetry_plane,
+                np.zeros((symmetry_plane.shape[0], 1))
+            ), axis=1
+        )
+
+    cut_plane = f['cut_plane'][:]
+
+    label = np.concatenate((symmetry_plane[:, None, :], cut_plane[:, None, :]), axis=1)
+
     f.close()
     return (data, label)
 
@@ -73,10 +100,10 @@ class ShapenetSymmetryDataset(object):
     def _augment_batch_data(self, batch_data, labels):
         rotated_data, rotated_labels = provider.rotate_point_cloud_z(batch_data, labels)
         rotated_data = provider.rotate_perturbation_point_cloud(rotated_data)
-        jittered_data = provider.random_scale_point_cloud(rotated_data[:,:,0:3])
+        jittered_data = provider.random_scale_point_cloud(rotated_data)
         jittered_data = provider.shift_point_cloud(jittered_data)
         jittered_data = provider.jitter_point_cloud(jittered_data)
-        rotated_data[:,:,0:3] = jittered_data
+        rotated_data = jittered_data
         return provider.shuffle_points(rotated_data), rotated_labels
 
 
@@ -84,11 +111,11 @@ class ShapenetSymmetryDataset(object):
         return self.h5_files[self.file_idxs[self.current_file_idx]]
 
     def _load_data_file(self, filename):
-        self.current_data,self.current_label = load_h5(filename)
-        self.current_label = np.squeeze(self.current_label)
+        self.current_data, self.current_label = load_h5(filename)
+        #self.current_label = np.squeeze(self.current_label)
         self.batch_idx = 0
         if self.shuffle:
-            self.current_data, self.current_label, _ = shuffle_data(self.current_data,self.current_label)
+            self.current_data, self.current_label, _ = shuffle_data(self.current_data, self.current_label)
     
     def _has_next_batch_in_file(self):
         return self.batch_idx*self.batch_size < self.current_data.shape[0]
@@ -111,8 +138,8 @@ class ShapenetSymmetryDataset(object):
         start_idx = self.batch_idx * self.batch_size
         end_idx = min((self.batch_idx+1) * self.batch_size, self.current_data.shape[0])
         bsize = end_idx - start_idx
-        data_batch = self.current_data[start_idx:end_idx, 0:self.npoints, :].copy()
-        label_batch = self.current_label[start_idx:end_idx].copy()
+        data_batch = self.current_data[start_idx:end_idx, :, 0:self.npoints, :].copy()
+        label_batch = self.current_label[start_idx:end_idx, ...].copy()
         self.batch_idx += 1
         if augment: data_batch, label_batch = self._augment_batch_data(data_batch, label_batch)
         return data_batch, label_batch 
