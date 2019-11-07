@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-def gen_symmetry_fig(FLAGS, step, cur_batch_gt_points, cur_batch_cut_plane, points, reflected_points, pred_normal, gt_plane, idx_to_show=None, show_gt_arrows=False):
+def gen_symmetry_fig(FLAGS, step, all_points, cur_batch_cut_plane, points, reflected_points, pred_normal, gt_plane, idx_to_show=None, show_gt_arrows=False):
 
     figs_path = os.path.join(FLAGS.log_dir, 'figs')
     if not os.path.exists(figs_path):
@@ -54,10 +54,10 @@ def gen_symmetry_fig(FLAGS, step, cur_batch_gt_points, cur_batch_cut_plane, poin
               r'$\theta = {:.2f}$'.format(theta))
     plt.rc('text', usetex=False)
 
-    a = cur_batch_gt_points[idx_to_show, ...] @ cur_batch_cut_plane[idx_to_show, 0:3] + cur_batch_cut_plane[idx_to_show, 3]
+    a = cur_batch_cut_plane[idx_to_show, 0:3] @ all_points[idx_to_show, ...] + cur_batch_cut_plane[idx_to_show, 3]
 
-    right_side = cur_batch_gt_points[idx_to_show, np.where(a > 0)[0], :]
-    left_side = cur_batch_gt_points[idx_to_show, np.where(a < 0)[0], :]
+    right_side = all_points[idx_to_show, np.where(a > 0)[0], :]
+    left_side = all_points[idx_to_show, np.where(a < 0)[0], :]
 
     point_cloud_fname = _show_point_cloud(ax, step, fig, left_side, figs_path, 'single', color='blue')
     point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'single', color='violet')
