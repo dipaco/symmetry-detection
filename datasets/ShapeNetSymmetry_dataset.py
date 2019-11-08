@@ -206,7 +206,7 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
 
         hf.close()
 
-    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.0, show=False):
+    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.1, show=False):
 
         # randomly generates the normal to the plane
         v = np.random.uniform(-1.0, 1.0, 3)
