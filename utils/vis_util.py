@@ -63,14 +63,19 @@ def gen_symmetry_fig(FLAGS, step, all_points, cut_planes, points, reflected_poin
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    _add_plane(ax, cut_planes[idx_to_show, 0:3], color='red', alpha=0.1, show_normal=True, d=cut_planes[idx_to_show, 3])
+    #_add_plane(ax, cut_planes[idx_to_show, 0:3], color='yellow', alpha=0.1, show_normal=True, d=-cut_planes[idx_to_show, 3])
     a = all_points[idx_to_show, ...] @ cut_planes[idx_to_show, 0:3] + cut_planes[idx_to_show, 3]
 
     right_side = all_points[idx_to_show, np.where(a > 0)[0], :]
     left_side = all_points[idx_to_show, np.where(a < 0)[0], :]
+    
+    r = right_side.shape[0] / all_points[idx_to_show, ...].shape[0]
 
     incomplete_point_cloud_fname = _show_point_cloud(ax, step, fig, left_side, figs_path, 'incomplete', color='blue')
-    incomplete_point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'incomplete', color='lightskyblue')
+    incomplete_point_cloud_fname = _show_point_cloud(ax, step, fig, right_side, figs_path, 'incomplete', color='red')
+
+    plt.title(f'missing parts: {100*r:.2f} %')
+
     plt.savefig(incomplete_point_cloud_fname)
     plt.close(fig)
     # ------
