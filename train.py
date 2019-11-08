@@ -44,6 +44,7 @@ parser.add_argument('--normal', action='store_true', help='Whether to use normal
 parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
 parser.add_argument('--create_figures', action='store_true')
 parser.add_argument('--augment', action='store_true')
+parser.add_argument('--cut_dataset', type=int, default=20, help='selects the dataset with missing parts [default: 20% missing points]', choices=[10, 20, 30])
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -58,7 +59,7 @@ OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 DATASET_DIR = FLAGS.dataset_dir
-PC_IDX = 3
+PC_IDX = FLAGS.cut_dataset // 10
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -260,8 +261,8 @@ def train_one_epoch(sess, ops, train_writer):
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
 
-            if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
+            #if FLAGS.create_figures:
+            #    MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
 
         batch_idx += 1
 
