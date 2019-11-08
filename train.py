@@ -44,7 +44,7 @@ parser.add_argument('--normal', action='store_true', help='Whether to use normal
 parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
 parser.add_argument('--create_figures', action='store_true')
 parser.add_argument('--augment', action='store_true')
-parser.add_argument('--cut_dataset', type=int, default=20, help='selects the dataset with missing parts [default: 20% missing points]', choices=[10, 20, 30])
+parser.add_argument('--cut_dataset', type=int, default=30, help='selects the dataset with missing parts [default: 20% missing points]', choices=[0, 10, 20, 30])
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
