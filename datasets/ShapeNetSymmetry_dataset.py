@@ -22,6 +22,8 @@ from misc import splitall
 from shutil import copyfile
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import scipy
+from scipy import cluster
 
 
 class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
@@ -67,10 +69,14 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
             all_face_normals = []
             all_triangles = []
             all_points = []
-            incomplete_point_clouds = {
-                10: {'points': [], 'plane': []},
-                20: {'points': [], 'plane': []},
-                30: {'points': [], 'plane': []}
+            all_cluster_labels = []
+            all_inc_cluster_labels = []
+            clusters = [2, 3, 4, 8]
+            incomplete_data = {
+                10: {'points': [], 'plane': [], 'cluster_labels': []},
+                20: {'points': [], 'plane': [], 'cluster_labels': []},
+                30: {'points': [], 'plane': [], 'cluster_labels': []},
+                50: {'points': [], 'plane': [], 'cluster_labels': []}
             }
             all_symmetry_planes = []
             all_filenames = []
@@ -154,16 +160,26 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
 
                 filename, _ = os.path.splitext(os.path.basename(f))
 
+                # Generates cluster labels for every k in clusters
+                gamma = 0.1
+                point_labels = np.zeros((points.shape[0], len(clusters)), dtype=int)
+                for i, k in enumerate(clusters):
+                    features = np.concatenate((gamma * points, np.linalg.norm(points, axis=1)[:, None]), axis=1)
+                    c, d = scipy.cluster.vq.kmeans(features, k)
+                    point_labels[:, i] = np.argmin(scipy.spatial.distance.cdist(points, c[:, 0:3]), axis=1)
+
                 # Remove up to the x percent of points by chopping the point cloud with a random plane
                 # the value of 'key' corresponds to the percentage of data we want to remove from the point cloud
-                for key in incomplete_point_clouds.keys():
-                    aux_points, aux_plane = self._remove_parts(points, symmetry_plane, t_upper=key/100)
-                    incomplete_point_clouds[key]['points'].append(aux_points)
-                    incomplete_point_clouds[key]['plane'].append(aux_plane)
+                for key in incomplete_data.keys():
+                    aux_points, aux_plane, inc_point_labels = self._remove_parts(points, symmetry_plane, point_labels, t_upper=key/100)
+                    incomplete_data[key]['points'].append(aux_points)
+                    incomplete_data[key]['plane'].append(aux_plane)
+                    incomplete_data[key]['cluster_labels'].append(inc_point_labels)
 
                 all_face_normals.append(face_normals)
                 all_triangles.append(triangles)
                 all_points.append(points)
+                all_cluster_labels.append(point_labels)
                 all_symmetry_planes.append(symmetry_plane)
                 all_filenames.append(filename)
 
@@ -175,43 +191,55 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                 if time.time() - init_time > self.MAX_RUNNING_TIME or num_valid_meshes >= objs_per_file:
                     self._write_h5_data(h5_filename,
                                         points=all_points,
-                                        incomplete_point_clouds=incomplete_point_clouds,
+                                        incomplete_point_clouds=incomplete_data,
                                         face_normals=all_face_normals,
                                         triangles=all_triangles,
                                         symmetry_planes=all_symmetry_planes,
-                                        filenames=all_filenames)
+                                        filenames=all_filenames,
+                                        cluster_labels=all_cluster_labels)
                     return k + 1
 
         print('Num. processed meshes: {}'.format(num_valid_meshes))
         self._write_h5_data(h5_filename,
                             points=all_points,
-                            incomplete_point_clouds=incomplete_point_clouds,
+                            incomplete_point_clouds=incomplete_data,
                             face_normals=all_face_normals,
                             triangles=all_triangles,
                             symmetry_planes=all_symmetry_planes,
                             filenames=all_filenames)
         return k + 1
 
-    def _write_h5_data(self, h5_filename, points, incomplete_point_clouds, face_normals, triangles, symmetry_planes, filenames):
+    def _write_h5_data(self, h5_filename, points, incomplete_point_clouds, face_normals, triangles, symmetry_planes, filenames, cluster_labels):
         hf = h5py.File(h5_filename, 'w')
         hf.create_dataset('points', data=np.array(points), compression="gzip", compression_opts=9)
         #hf.create_dataset('face_normals', data=face_normals, compression="gzip", compression_opts=9)
         #hf.create_dataset('triangles', data=np.array(triangles, dtype=object), compression="gzip", compression_opts=9)
         hf.create_dataset('symmetry_planes', data=np.array(symmetry_planes), compression="gzip", compression_opts=9)
+        hf.create_dataset('cluster_labels', data=np.array(cluster_labels), compression="gzip", compression_opts=9)
         #hf.create_dataset('filenames', data=filenames, compression="gzip", compression_opts=9)
 
         for key in incomplete_point_clouds.keys():
             hf.create_dataset(f'points_{key}', data=np.array(incomplete_point_clouds[key]['points']), compression="gzip", compression_opts=9)
             hf.create_dataset(f'cut_plane_{key}', data=np.array(incomplete_point_clouds[key]['plane']), compression="gzip", compression_opts=9)
+            hf.create_dataset(f'cluster_labels_{key}', data=np.array(incomplete_point_clouds[key]['cluster_labels']), compression="gzip", compression_opts=9)
 
         hf.close()
 
-    def _remove_parts(self, points, symmetry_plane, t_upper=0.2, t_lower=0.1, show=False):
+    def _remove_parts(self, points, symmetry_plane, point_labels, t_upper=0.2, t_lower=0.1, show=False):
 
         # randomly generates the normal to the plane
-        v = np.random.uniform(-1.0, 1.0, 3)
+        # the normal will be close to the plane of symmetry differing
+        # in their normals by two rotations (azimuthal and elevation)
+        # so that their angles of rotation are normally distributed. (az, el ~ N(0, pi/8))
+        #v = np.random.uniform(-1.0, 1.0, 3)
+        az = np.random.normal(0, np.pi/8)
+        R_az = np_util.get_rotation([az, 0.0, 0.0])
+        el = np.random.normal(0, np.pi/8)
+        R_el = np_util.get_rotation([0.0, el, 0.0])
+
+        v = (R_el @ R_az) @ symmetry_plane
+
         v /= np.linalg.norm(v)
-        v = v[:, None]
 
         m = 50
         t1 = 0.0
@@ -235,29 +263,38 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
         a = points @ v - d
 
         right_side = points[np.where(a > 0)[0], :]
-        left_side = points[np.where(a < 0)[0], :]
+        left_side = points[np.where(a <= 0)[0], :]
 
         r = right_side.shape[0] / points.shape[0]
 
         if show:
+
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            # for i in range(points.shape[0]):
+
+            colors = plt.cm.get_cmap(lut=np.max(point_labels[:, 0]) + 1)
+            ax.scatter(points[:, 0], points[:, 1], points[:, 2], marker='.', color=colors.colors[point_labels[:, 0]])
+
+            vis_util._set_unit_limits_in_3d_plot(ax)
+            plt.show()
+
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
             vis_util._add_plane(ax, v[:, 0], color='green', alpha=0.1, show_normal=True, d=d)
+            vis_util._add_plane(ax, symmetry_plane[:, 0], color='orange', alpha=0.1, show_normal=True, d=d)
             ax.scatter(left_side[:, 0], left_side[:, 1], left_side[:, 2], marker='.', color='blue')
             ax.scatter(right_side[:, 0], right_side[:, 1], right_side[:, 2], marker='.', color='red')
-            ax.set_xlabel('X Label')
-            ax.set_ylabel('Y Label')
-            ax.set_zlabel('Z Label')
-            plt.ylim([-1, 1])
-            plt.xlim([-1, 1])
-            ax.set_zlim([-1, 1])
+            vis_util._set_unit_limits_in_3d_plot(ax)
             plt.title(f'missing parts: {r}\nt1:{t1} t2:{t2}')
 
             plt.show()
 
         new_points = np.zeros_like(points)
+        new_point_labels = np.zeros_like(point_labels)
         new_points[:left_side.shape[0], :] = left_side
-        return new_points, np.append(v[:, 0], -d)
+        new_point_labels[:left_side.shape[0], :] = point_labels[np.where(a <= 0)[0], :]
+        return new_points, np.append(v[:, 0], -d), point_labels
 
 
     def build_tfrecord(self, tfrecord_filename, files, ext='obj', rotate=False, rot_type='z'):
