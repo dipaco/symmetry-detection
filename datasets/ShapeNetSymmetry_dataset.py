@@ -163,9 +163,9 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                 # Generates cluster labels for every k in clusters
                 gamma = 0.1
                 point_labels = np.zeros((points.shape[0], len(clusters)), dtype=int)
-                for i, k in enumerate(clusters):
+                for i, num_clusters in enumerate(clusters):
                     features = np.concatenate((gamma * points, np.linalg.norm(points, axis=1)[:, None]), axis=1)
-                    c, d = scipy.cluster.vq.kmeans(features, k)
+                    c, d = scipy.cluster.vq.kmeans(features, num_clusters)
                     point_labels[:, i] = np.argmin(scipy.spatial.distance.cdist(points, c[:, 0:3]), axis=1)
 
                 # Remove up to the x percent of points by chopping the point cloud with a random plane
@@ -206,7 +206,8 @@ class ShapeNetSymmetryDataset(symcomp17_dataset.Symcomp17Dataset):
                             face_normals=all_face_normals,
                             triangles=all_triangles,
                             symmetry_planes=all_symmetry_planes,
-                            filenames=all_filenames)
+                            filenames=all_filenames,
+                            cluster_labels=all_cluster_labels)
         return k + 1
 
     def _write_h5_data(self, h5_filename, points, incomplete_point_clouds, face_normals, triangles, symmetry_planes, filenames, cluster_labels):
