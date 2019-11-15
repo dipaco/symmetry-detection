@@ -79,6 +79,7 @@ def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse):
         Uses Householder transformation to reflect the original_points around the plane <pred>
     """
     n_points = tf.shape(input_points['l0_xyz'])[1]
+    n_clusters = tf.shape(cluster_labels_sparse)[2]
     y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
     y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
 
@@ -90,7 +91,7 @@ def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse):
     input_points['reflected_l0_xyz'] = reflected_point_cloud
 
 
-    cluster_labels_sparse = 2 * cluster_labels_sparse - tf.ones_like(cluster_labels_sparse)
+    '''cluster_labels_sparse = 2 * cluster_labels_sparse - tf.ones_like(cluster_labels_sparse)
     cluster_labels_sparse = cluster_labels_sparse[:, None, ...]
     #cluster_labels_sparse = tf.cast(cluster_labels_sparse, tf.float32)
     cdist = pairwise_l2_norm2(input_points['l0_xyz'], reflected_point_cloud)
@@ -102,9 +103,16 @@ def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse):
     d_matrix = tf.maximum(0.0, d_matrix)
 
     # computing the min distance in the cluster
-    min_dist = tf.reduce_min(d_matrix, axis=2)
+    min_dist = tf.reduce_min(d_matrix, axis=2)'''
 
-    cluster_chamfer_loss = tf.reduce_mean(min_dist)
+    cluster_chamfer_loss = 0.0
+    w = 10.0 * (1.0 - cluster_labels_sparse) + cluster_labels_sparse
+    for i in range(n_clusters):
+        op = reflected_point_cloud * w[..., i]
+        dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
+        cluster_chamfer_loss += tf.reduce_mean(dists_forward + dists_backward)
+
+    #cluster_chamfer_loss = tf.reduce_mean(min_dist)
 
     #dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
 
