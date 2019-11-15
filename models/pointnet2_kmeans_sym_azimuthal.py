@@ -107,14 +107,16 @@ def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse, n_cluste
     cluster_chamfer_loss = 0.0
     w = 10.0 * (1.0 - cluster_labels_sparse) + cluster_labels_sparse
     for i in range(n_clusters):
-        op = reflected_point_cloud * w[..., i]
-        dists_forward, _, dists_backward, _ = nn_distance(op, input_points['l0_xyz'])
+        op1 = reflected_point_cloud * w[..., i][..., None]
+        op2 = input_points['l0_xyz'] * w[..., i][..., None]
+        dists_forward, _, dists_backward1, _ = nn_distance(op1, input_points['l0_xyz'])
+        dists_forward, _, dists_backward2, _ = nn_distance(op2, reflected_point_cloud)
 
-        alpha = tf.reduce_sum(cluster_labels_sparse[..., i], axis=1) / n_points
+        alpha = tf.reduce_sum(cluster_labels_sparse[..., i], axis=1) / tf.cast(n_points, tf.float32)
 
-        chamfer_loss_cluster_i = alpha * tf.reduce_mean(dists_forward + dists_backward, axis=1)
+        cluster_chamfer_loss += alpha * tf.reduce_mean(dists_backward1 + dists_backward2, axis=1)
 
-        cluster_chamfer_loss += tf.reduce_mean(chamfer_loss_cluster_i)
+    cluster_chamfer_loss = tf.reduce_mean(cluster_chamfer_loss)
 
     #cluster_chamfer_loss = tf.reduce_mean(min_dist)
 

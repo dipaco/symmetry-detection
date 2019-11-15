@@ -442,7 +442,7 @@ def cosine_similarity(estimated_planes, ground_truth_planes):
 
 
 def labels_to_sparse_matrix(batched_labels, k):
-    res = np.zeros(batched_labels.shape + (k,))
+    res = np.zeros(batched_labels.shape + (k,), dtype=np.float32)
     for i in range(k):
         res[:, :, i] = (batched_labels == i).astype(int)
 
