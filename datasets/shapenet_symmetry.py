@@ -84,6 +84,7 @@ def load_h5(h5_filename):
             cut_plane_50[:, None, :]
         ), axis=1)
 
+    cluster_labels_all_points = f['cluster_labels'][:]
     cluster_labels_10 = f['cluster_labels_10'][:]
     cluster_labels_20 = f['cluster_labels_20'][:]
     cluster_labels_30 = f['cluster_labels_30'][:]
@@ -91,7 +92,7 @@ def load_h5(h5_filename):
 
     cluster_labels = np.concatenate(
         (
-            symmetry_plane[:, None, ...],
+            cluster_labels_all_points[:, None, ...],
             cluster_labels_10[:, None, ...],
             cluster_labels_20[:, None, ...],
             cluster_labels_30[:, None, ...],

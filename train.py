@@ -237,7 +237,7 @@ def train_one_epoch(sess, ops, train_writer):
     # Make sure batch data is of same size
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
-    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT, NUM_K_IDX))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT))
     cur_batch_label = np.zeros((BATCH_SIZE,  3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
@@ -249,7 +249,7 @@ def train_one_epoch(sess, ops, train_writer):
         bsize = batch_data.shape[0]
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
-        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
@@ -266,8 +266,8 @@ def train_one_epoch(sess, ops, train_writer):
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
 
-            #if FLAGS.create_figures:
-            #    MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
+            if FLAGS.create_figures:
+                MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
 
         batch_idx += 1
 
@@ -284,7 +284,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT,TEST_DATASET.num_channel()))
-    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT, NUM_K_IDX))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
@@ -308,7 +308,7 @@ def eval_one_epoch(sess, ops, test_writer):
         # for the last batch in the epoch, the bsize:end are from last batch
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
-        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
