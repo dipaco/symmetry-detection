@@ -270,8 +270,8 @@ def train_one_epoch(sess, ops, train_writer):
             log_string('mean loss: %f' % (loss_sum / 50))
             loss_sum = 0
 
-            if FLAGS.create_figures:
-                MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
+            #if FLAGS.create_figures:
+            #    MODEL.create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, end_points['l0_xyz'], end_points['reflected_l0_xyz'], pred_val, cur_batch_label)
 
         batch_idx += 1
 
