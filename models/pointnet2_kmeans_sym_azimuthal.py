@@ -16,10 +16,11 @@ import math
 from pointnet_util import pointnet_sa_module
 from tf_nndistance import nn_distance
 
-def placeholder_inputs(batch_size, num_point):
+def placeholder_inputs(batch_size, num_point, num_clusters):
     pointclouds_pl = tf.placeholder(tf.float32, shape=(batch_size, num_point, 3))
     labels_pl = tf.placeholder(tf.float32, shape=(batch_size, 3))
-    return pointclouds_pl, labels_pl
+    cluster_labels_pl = tf.placeholder(tf.float32, shape=(batch_size, num_point, num_clusters))
+    return pointclouds_pl, labels_pl, cluster_labels_pl
 
 def get_model(point_cloud, is_training, bn_decay=None):
     """ Classification PointNet, input is BxNx3, output Bx40 """
@@ -50,8 +51,28 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
     return net, end_points
 
+def pairwise_l2_norm2(x, y, scope=None):
+    with tf.op_scope([x, y], scope, 'pairwise_l2_norm2'):
+        batch_size = tf.shape(x)[0]
+        size_x = tf.shape(x)[1]
+        size_y = tf.shape(y)[1]
+        #xx = tf.expand_dims(x, -1)
+        #xx = tf.tile(xx, tf.pack([1, 1, size_y]))
+        xx = x[:, :, None, :]
 
-def get_loss(pred_plane, gt_plane, input_points):
+        yy = tf.expand_dims(y, -1)
+        #yy = tf.tile(yy, tf.pack([1, 1, size_x]))
+        #yy = tf.transpose(yy, perm=[2, 1, 0])
+        yy = y[:, None, :, :]
+
+        diff = xx - yy
+
+        #diff = tf.sub(xx, yy)
+        square_dist = tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
+
+        return square_dist
+
+def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse):
     """ pred: B*N*3,
         label: B*N*3,
 
@@ -68,20 +89,30 @@ def get_loss(pred_plane, gt_plane, input_points):
     reflected_point_cloud = tf.einsum('bic, bpc -> bpi', T, input_points['l0_xyz'])
     input_points['reflected_l0_xyz'] = reflected_point_cloud
 
-    dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
 
-    chamfer_loss = tf.reduce_mean(dists_forward + dists_backward)
+    cluster_labels_sparse = 2 * cluster_labels_sparse - tf.ones_like(cluster_labels_sparse)
+    cluster_labels_sparse = cluster_labels_sparse[:, None, ...]
+    cdist = pairwise_l2_norm2(input_points['l0_xyz'], reflected_point_cloud)
+    cdist = cdist[..., None]
+
+    min_dist = tf.reduce_min(tf.maximum(0, cdist * cluster_labels_sparse), axis=2)
+
+    cluster_chamfer_loss = tf.reduce_mean(min_dist)
+
+    #dists_forward, _, dists_backward, _ = nn_distance(reflected_point_cloud, input_points['l0_xyz'])
+
+    #chamfer_loss = tf.reduce_mean(dists_forward + dists_backward)
 
 
     cosine_similarity = tf.abs(tf.reduce_sum(y_true * y_pred, axis=-1))
     cosine_similarity_loss = 1 - tf.reduce_mean(cosine_similarity)
     average_error_angle = tf.reduce_mean(tf.math.acos(cosine_similarity) * 180 / math.pi)
 
-    tf.summary.scalar('Chamfer loss', chamfer_loss)
+    tf.summary.scalar('Cluster Chamfer loss', cluster_chamfer_loss)
     tf.summary.scalar('Mean error angle', average_error_angle)
-    tf.add_to_collection('losses', chamfer_loss)
+    tf.add_to_collection('losses', cluster_chamfer_loss)
 
-    return chamfer_loss
+    return cluster_chamfer_loss
 
 
 def create_figures(FLAGS, step, tb_logger, cur_batch_gt_points, cur_batch_cut_plane, points, reflected_points, pred_plane, gt_plane):

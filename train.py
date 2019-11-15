@@ -22,6 +22,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'datasets'))
 import provider
 import tf_util
+import np_util
 import tensorboard_logging
 import modelnet_dataset
 import modelnet_h5_dataset
@@ -133,7 +134,7 @@ def train():
 
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
+            pointclouds_pl, labels_pl, cluster_labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, CLUSTERS[NUM_K_IDX])
             is_training_pl = tf.placeholder(tf.bool, shape=())
 
             global_step = tf.train.get_or_create_global_step()
@@ -143,7 +144,7 @@ def train():
 
             # Get model and loss 
             pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
-            MODEL.get_loss(pred, labels_pl, end_points)
+            MODEL.get_loss(pred, labels_pl, end_points, cluster_labels_pl)
             losses = tf.get_collection('losses')
             total_loss = tf.add_n(losses, name='total_loss')
             tf.summary.scalar('total_loss', total_loss)
@@ -190,6 +191,7 @@ def train():
 
         ops = {'pointclouds_pl': pointclouds_pl,
                'labels_pl': labels_pl,
+               'cluster_labels_pl': cluster_labels_pl,
                'is_training_pl': is_training_pl,
                'pred': pred,
                'loss': total_loss,
@@ -250,11 +252,13 @@ def train_one_epoch(sess, ops, train_writer):
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
         cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
+        cur_batch_cluster_labels_sparse = np_util.labels_to_sparse_matrix(cur_batch_cluster_labels, CLUSTERS[NUM_K_IDX])
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
+                     ops['cluster_labels_pl']: cur_batch_cluster_labels_sparse,
                      ops['is_training_pl']: is_training,}
         summary, step, _, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['train_op'], ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
@@ -309,11 +313,13 @@ def eval_one_epoch(sess, ops, test_writer):
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
         cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
+        cur_batch_cluster_labels_sparse = np_util.labels_to_sparse_matrix(cur_batch_cluster_labels, CLUSTERS[NUM_K_IDX])
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
+                     ops['cluster_labels_pl']: cur_batch_cluster_labels_sparse,
                      ops['is_training_pl']: is_training}
         summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
             ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)

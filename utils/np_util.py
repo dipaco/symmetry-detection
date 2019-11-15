@@ -439,3 +439,11 @@ def align_mesh(query, obj):
 
 def cosine_similarity(estimated_planes, ground_truth_planes):
     pass
+
+
+def labels_to_sparse_matrix(batched_labels, k):
+    res = np.zeros(batched_labels.shape + (k,))
+    for i in range(k):
+        res[:, :, i] = (batched_labels == i).astype(int)
+
+    return res
