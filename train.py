@@ -44,7 +44,8 @@ parser.add_argument('--normal', action='store_true', help='Whether to use normal
 parser.add_argument('--train_size', type=int, help='Number of elements in the train size.')
 parser.add_argument('--create_figures', action='store_true')
 parser.add_argument('--augment', action='store_true')
-parser.add_argument('--cut_dataset', type=int, default=30, help='selects the dataset with missing parts [default: 20% missing points]', choices=[0, 10, 20, 30])
+parser.add_argument('--cut_dataset', type=int, default=4, help='selects the dataset with missing parts [default: 20% missing points]', choices=[0, 1, 2, 3, 4])
+parser.add_argument('--num_clusters', type=int, default=4, help='Num of clusters for the semantic labels', choices=[2, 3, 4, 8])
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -59,7 +60,9 @@ OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 DATASET_DIR = FLAGS.dataset_dir
-PC_IDX = FLAGS.cut_dataset // 10
+PC_IDX = FLAGS.cut_dataset
+CLUSTERS = [2, 3, 4, 8]
+NUM_K_IDX = CLUSTERS.index(FLAGS.num_clusters)
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -234,17 +237,19 @@ def train_one_epoch(sess, ops, train_writer):
     # Make sure batch data is of same size
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT, NUM_K_IDX))
     cur_batch_label = np.zeros((BATCH_SIZE,  3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
     loss_sum = 0
     batch_idx = 0
     while TRAIN_DATASET.has_next_batch():
-        batch_data, batch_label = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
+        batch_data, batch_label, batch_cluster_labels = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
 
         bsize = batch_data.shape[0]
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
@@ -279,6 +284,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT,TEST_DATASET.num_channel()))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT, NUM_K_IDX))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
@@ -297,11 +303,12 @@ def eval_one_epoch(sess, ops, test_writer):
     all_cut_planes = None
     
     while TEST_DATASET.has_next_batch():
-        batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
+        batch_data, batch_label, batch_cluster_labels = TEST_DATASET.next_batch(augment=False)
         bsize = batch_data.shape[0]
         # for the last batch in the epoch, the bsize:end are from last batch
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, ...]
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 

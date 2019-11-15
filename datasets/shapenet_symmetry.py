@@ -26,7 +26,7 @@ if not os.path.exists(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048')):
     os.system('rm %s' % (zipfile))
 
 
-def shuffle_data(data, labels):
+def shuffle_data(data, labels, cluster_labels):
     """ Shuffle data and labels.
         Input:
           data: B, K, N, ... numpy array
@@ -36,7 +36,7 @@ def shuffle_data(data, labels):
     """
     idx = np.arange(labels.shape[0])
     np.random.shuffle(idx)
-    return data[idx, ...], labels[idx, ...], idx
+    return data[idx, ...], labels[idx, ...], cluster_labels[idx, ...], idx
 
 def getDataFiles(list_filename):
     return [line.rstrip() for line in open(list_filename)]
@@ -48,12 +48,14 @@ def load_h5(h5_filename):
     point_cloud_10 = f['points_10'][:]
     point_cloud_20 = f['points_20'][:]
     point_cloud_30 = f['points_30'][:]
+    point_cloud_50 = f['points_50'][:]
 
     data = np.concatenate(
         (point_cloud[:, None, ...],
          point_cloud_10[:, None, ...],
          point_cloud_20[:, None, ...],
-         point_cloud_30[:, None, ...]
+         point_cloud_30[:, None, ...],
+         point_cloud_50[:, None, ...]
          ), axis=1)
 
     symmetry_plane = f['symmetry_planes'][:]
@@ -71,17 +73,33 @@ def load_h5(h5_filename):
     cut_plane_10 = f['cut_plane_10'][:]
     cut_plane_20 = f['cut_plane_20'][:]
     cut_plane_30 = f['cut_plane_30'][:]
+    cut_plane_50 = f['cut_plane_50'][:]
 
     label = np.concatenate(
         (
             symmetry_plane[:, None, :],
             cut_plane_10[:, None, :],
             cut_plane_20[:, None, :],
-            cut_plane_30[:, None, :]
+            cut_plane_30[:, None, :],
+            cut_plane_50[:, None, :]
+        ), axis=1)
+
+    cluster_labels_10 = f['cluster_labels_10'][:]
+    cluster_labels_20 = f['cluster_labels_20'][:]
+    cluster_labels_30 = f['cluster_labels_30'][:]
+    cluster_labels_50 = f['cluster_labels_50'][:]
+
+    cluster_labels = np.concatenate(
+        (
+            symmetry_plane[:, None, ...],
+            cluster_labels_10[:, None, ...],
+            cluster_labels_20[:, None, ...],
+            cluster_labels_30[:, None, ...],
+            cluster_labels_50[:, None, ...]
         ), axis=1)
 
     f.close()
-    return (data, label)
+    return (data, label, cluster_labels)
 
 def loadDataFile(filename):
     return load_h5(filename)
@@ -119,11 +137,11 @@ class ShapenetSymmetryDataset(object):
         return self.h5_files[self.file_idxs[self.current_file_idx]]
 
     def _load_data_file(self, filename):
-        self.current_data, self.current_label = load_h5(filename)
+        self.current_data, self.current_label, self.cluster_labels = load_h5(filename)
         #self.current_label = np.squeeze(self.current_label)
         self.batch_idx = 0
         if self.shuffle:
-            self.current_data, self.current_label, _ = shuffle_data(self.current_data, self.current_label)
+            self.current_data, self.current_label, self.cluster_labels, _ = shuffle_data(self.current_data, self.current_label, self.cluster_labels)
     
     def _has_next_batch_in_file(self):
         return self.batch_idx*self.batch_size < self.current_data.shape[0]
@@ -148,9 +166,10 @@ class ShapenetSymmetryDataset(object):
         bsize = end_idx - start_idx
         data_batch = self.current_data[start_idx:end_idx, :, 0:self.npoints, :].copy()
         label_batch = self.current_label[start_idx:end_idx, ...].copy()
+        cluster_labels_batch = self.cluster_labels[start_idx:end_idx, :, 0:self.npoints, :].copy()
         self.batch_idx += 1
         if augment: data_batch, label_batch = self._augment_batch_data(data_batch, label_batch)
-        return data_batch, label_batch 
+        return data_batch, label_batch, cluster_labels_batch
 
 if __name__=='__main__':
     d = ShapenetSymmetryDataset('data/modelnet40_ply_hdf5_2048/train_files.txt')
