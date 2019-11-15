@@ -72,14 +72,13 @@ def pairwise_l2_norm2(x, y, scope=None):
 
         return square_dist
 
-def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse):
+def get_loss(pred_plane, gt_plane, input_points, cluster_labels_sparse, n_clusters):
     """ pred: B*N*3,
         label: B*N*3,
 
         Uses Householder transformation to reflect the original_points around the plane <pred>
     """
     n_points = tf.shape(input_points['l0_xyz'])[1]
-    n_clusters = tf.shape(cluster_labels_sparse)[2]
     y_true = tf.nn.l2_normalize(gt_plane, axis=-1)
     y_pred = tf.nn.l2_normalize(pred_plane, axis=-1)
 
