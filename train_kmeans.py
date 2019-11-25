@@ -158,6 +158,17 @@ def train():
             elif OPTIMIZER == 'adam':
                 optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
             train_op = optimizer.minimize(total_loss, global_step=global_step)
+
+            # Plot the gradients as summaries
+            tvs = tf.trainable_variables()  # Retrieve all trainable variables you defined in your graph
+            grads = optimizer.compute_gradients(total_loss, tvs)
+            gradient_summaries = []
+            variable_summaries = []
+            for gradient, variable in zip(grads, tvs):
+                gradient_summaries.append(tf.summary.histogram("gradients/" + variable.name, tf.norm(gradient)))
+                variable_summaries.append(tf.summary.histogram("variables/" + variable.name, tf.norm(variable)))
+            gradient_summary = tf.summary.merge(gradient_summaries)
+            var_summary = tf.summary.merge(variable_summaries)
             
             # Add ops to save and restore all the variables.
             saver = tf.train.Saver(save_relative_paths=True)
@@ -198,7 +209,9 @@ def train():
                'train_op': train_op,
                'merged': merged,
                'step': global_step,
-               'end_points': end_points}
+               'end_points': end_points,
+               'gradient_summary': gradient_summary,
+               'var_summary': var_summary}
 
         best_acc = -1
         for epoch in range(cur_epoch, MAX_EPOCH):
@@ -260,9 +273,14 @@ def train_one_epoch(sess, ops, train_writer):
                      ops['labels_pl']: cur_batch_label,
                      ops['cluster_labels_pl']: cur_batch_cluster_labels_sparse,
                      ops['is_training_pl']: is_training,}
-        summary, step, _, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
-            ops['train_op'], ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
+        summary, step, _, loss_val, pred_val, end_points, grad_summary, var_summary = sess.run([ops['merged'], ops['step'],
+            ops['train_op'], ops['loss'], ops['pred'], ops['end_points'], ops['gradient_summary'],
+            ops['var_summary']], feed_dict=feed_dict)
+
+        # Add the summaries to tensorboard
         train_writer.add_summary(summary, step)
+        train_writer.add_summary(grad_summary, step)
+        train_writer.add_summary(var_summary, step)
 
         loss_sum += loss_val
         if (batch_idx+1) % 50 == 0:

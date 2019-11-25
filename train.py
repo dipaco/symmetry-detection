@@ -206,8 +206,7 @@ def train():
                'step': global_step,
                'end_points': end_points,
                'gradient_summary': gradient_summary,
-               'var_summary': var_summary
-        }
+               'var_summary': var_summary}
 
         best_acc = -1
         for epoch in range(cur_epoch, MAX_EPOCH):
@@ -268,6 +267,8 @@ def train_one_epoch(sess, ops, train_writer):
         summary, step, _, loss_val, pred_val, end_points, grad_summary, var_summary = sess.run([ops['merged'], ops['step'],
             ops['train_op'], ops['loss'], ops['pred'], ops['end_points'], ops['gradient_summary'],
             ops['var_summary']], feed_dict=feed_dict)
+
+        # Add the summaries to tensorboard
         train_writer.add_summary(summary, step)
         train_writer.add_summary(grad_summary, step)
         train_writer.add_summary(var_summary, step)
@@ -325,9 +326,8 @@ def eval_one_epoch(sess, ops, test_writer):
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
                      ops['is_training_pl']: is_training}
-        summary, step, loss_val, pred_val, end_points, grad_summary, var_summary = sess.run([ops['merged'], ops['step'],
-            ops['loss'], ops['pred'], ops['end_points'], ops['gradient_summary'],
-            ops['var_summary']], feed_dict=feed_dict)
+        summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
+            ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
         all_gt_points = cur_batch_gt_points if all_gt_points is None else np.vstack((all_gt_points, cur_batch_gt_points))
         all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
