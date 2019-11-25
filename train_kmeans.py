@@ -22,6 +22,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'datasets'))
 import provider
 import tf_util
+import np_util
 import tensorboard_logging
 import modelnet_dataset
 import modelnet_h5_dataset
@@ -45,6 +46,7 @@ parser.add_argument('--train_size', type=int, help='Number of elements in the tr
 parser.add_argument('--create_figures', action='store_true')
 parser.add_argument('--augment', action='store_true')
 parser.add_argument('--cut_dataset', type=int, default=4, help='selects the dataset with missing parts [default: 20% missing points]', choices=range(5))
+parser.add_argument('--num_clusters', type=int, default=4, help='Num of clusters for the semantic labels', choices=[2, 3, 4, 8])
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -60,6 +62,8 @@ DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 DATASET_DIR = FLAGS.dataset_dir
 PC_IDX = FLAGS.cut_dataset
+CLUSTERS = [2, 3, 4, 8]
+NUM_K_IDX = CLUSTERS.index(FLAGS.num_clusters)
 
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(ROOT_DIR, 'models', FLAGS.model+'.py')
@@ -130,7 +134,7 @@ def train():
 
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
+            pointclouds_pl, labels_pl, cluster_labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, CLUSTERS[NUM_K_IDX])
             is_training_pl = tf.placeholder(tf.bool, shape=())
 
             global_step = tf.train.get_or_create_global_step()
@@ -140,7 +144,7 @@ def train():
 
             # Get model and loss 
             pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
-            MODEL.get_loss(pred, labels_pl, end_points)
+            MODEL.get_loss(pred, labels_pl, end_points, cluster_labels_pl, CLUSTERS[NUM_K_IDX])
             losses = tf.get_collection('losses')
             total_loss = tf.add_n(losses, name='total_loss')
             tf.summary.scalar('total_loss', total_loss)
@@ -154,17 +158,6 @@ def train():
             elif OPTIMIZER == 'adam':
                 optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
             train_op = optimizer.minimize(total_loss, global_step=global_step)
-
-            # Plot the gradients as summaries
-            tvs = tf.trainable_variables() # Retrieve all trainable variables you defined in your graph
-            grads = optimizer.compute_gradients(total_loss, tvs)
-            gradient_summaries = []
-            variable_summaries = []
-            for gradient, variable in zip(grads, tvs):
-                gradient_summaries.append(tf.summary.histogram("gradients/" + variable.name, tf.norm(gradient)))
-                variable_summaries.append(tf.summary.histogram("variables/" + variable.name, tf.norm(variable)))
-            gradient_summary = tf.summary.merge(gradient_summaries)
-            var_summary = tf.summary.merge(variable_summaries)
             
             # Add ops to save and restore all the variables.
             saver = tf.train.Saver(save_relative_paths=True)
@@ -198,16 +191,14 @@ def train():
 
         ops = {'pointclouds_pl': pointclouds_pl,
                'labels_pl': labels_pl,
+               'cluster_labels_pl': cluster_labels_pl,
                'is_training_pl': is_training_pl,
                'pred': pred,
                'loss': total_loss,
                'train_op': train_op,
                'merged': merged,
                'step': global_step,
-               'end_points': end_points,
-               'gradient_summary': gradient_summaries,
-               'var_summary': var_summary
-        }
+               'end_points': end_points}
 
         best_acc = -1
         for epoch in range(cur_epoch, MAX_EPOCH):
@@ -248,29 +239,30 @@ def train_one_epoch(sess, ops, train_writer):
     # Make sure batch data is of same size
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT))
     cur_batch_label = np.zeros((BATCH_SIZE,  3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
     loss_sum = 0
     batch_idx = 0
     while TRAIN_DATASET.has_next_batch():
-        batch_data, batch_label = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
+        batch_data, batch_label, batch_cluster_labels = TRAIN_DATASET.next_batch(augment=FLAGS.augment)
 
         bsize = batch_data.shape[0]
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
+        cur_batch_cluster_labels_sparse = np_util.labels_to_sparse_matrix(cur_batch_cluster_labels, CLUSTERS[NUM_K_IDX])
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
+                     ops['cluster_labels_pl']: cur_batch_cluster_labels_sparse,
                      ops['is_training_pl']: is_training,}
-        summary, step, _, loss_val, pred_val, end_points, grad_summary, var_summary = sess.run([ops['merged'], ops['step'],
-            ops['train_op'], ops['loss'], ops['pred'], ops['end_points'], ops['gradient_summary'],
-            ops['var_summary']], feed_dict=feed_dict)
+        summary, step, _, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
+            ops['train_op'], ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
         train_writer.add_summary(summary, step)
-        train_writer.add_summary(grad_summary, step)
-        train_writer.add_summary(var_summary, step)
 
         loss_sum += loss_val
         if (batch_idx+1) % 50 == 0:
@@ -296,6 +288,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
     cur_batch_gt_points = np.zeros((BATCH_SIZE, NUM_POINT, TRAIN_DATASET.num_channel()))
     cur_batch_points = np.zeros((BATCH_SIZE, NUM_POINT,TEST_DATASET.num_channel()))
+    cur_batch_cluster_labels = np.zeros((BATCH_SIZE, NUM_POINT))
     cur_batch_label = np.zeros((BATCH_SIZE, 3))
     cur_batch_cut_plane = np.zeros((BATCH_SIZE, 4))
 
@@ -314,20 +307,22 @@ def eval_one_epoch(sess, ops, test_writer):
     all_cut_planes = None
     
     while TEST_DATASET.has_next_batch():
-        batch_data, batch_label = TEST_DATASET.next_batch(augment=False)
+        batch_data, batch_label, batch_cluster_labels = TEST_DATASET.next_batch(augment=False)
         bsize = batch_data.shape[0]
         # for the last batch in the epoch, the bsize:end are from last batch
         cur_batch_gt_points[0:bsize, ...] = batch_data[:, 0, ...]
         cur_batch_points[0:bsize,...] = batch_data[:, PC_IDX, ...]
+        cur_batch_cluster_labels[0:bsize, ...] = batch_cluster_labels[:, PC_IDX, :, NUM_K_IDX]
+        cur_batch_cluster_labels_sparse = np_util.labels_to_sparse_matrix(cur_batch_cluster_labels, CLUSTERS[NUM_K_IDX])
         cur_batch_label[0:bsize, ...] = batch_label[:, 0, 0:3]
         cur_batch_cut_plane[0:bsize, ...] = batch_label[:, PC_IDX, :]
 
         feed_dict = {ops['pointclouds_pl']: cur_batch_points,
                      ops['labels_pl']: cur_batch_label,
+                     ops['cluster_labels_pl']: cur_batch_cluster_labels_sparse,
                      ops['is_training_pl']: is_training}
-        summary, step, loss_val, pred_val, end_points, grad_summary, var_summary = sess.run([ops['merged'], ops['step'],
-            ops['loss'], ops['pred'], ops['end_points'], ops['gradient_summary'],
-            ops['var_summary']], feed_dict=feed_dict)
+        summary, step, loss_val, pred_val, end_points = sess.run([ops['merged'], ops['step'],
+            ops['loss'], ops['pred'], ops['end_points']], feed_dict=feed_dict)
 
         all_gt_points = cur_batch_gt_points if all_gt_points is None else np.vstack((all_gt_points, cur_batch_gt_points))
         all_end_points = end_points['l0_xyz'] if all_end_points is None else np.vstack((all_end_points, end_points['l0_xyz']))
