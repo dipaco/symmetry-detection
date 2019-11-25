@@ -205,7 +205,7 @@ def train():
                'merged': merged,
                'step': global_step,
                'end_points': end_points,
-               'gradient_summary': gradient_summaries,
+               'gradient_summary': gradient_summary,
                'var_summary': var_summary
         }
 
