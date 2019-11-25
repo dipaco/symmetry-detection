@@ -48,12 +48,14 @@ def load_h5(h5_filename):
     point_cloud_10 = f['points_10'][:]
     point_cloud_20 = f['points_20'][:]
     point_cloud_30 = f['points_30'][:]
+    point_cloud_50 = f['points_50'][:]
 
     data = np.concatenate(
         (point_cloud[:, None, ...],
          point_cloud_10[:, None, ...],
          point_cloud_20[:, None, ...],
-         point_cloud_30[:, None, ...]
+         point_cloud_30[:, None, ...],
+         point_cloud_50[:, None, ...]
          ), axis=1)
 
     symmetry_plane = f['symmetry_planes'][:]
@@ -71,13 +73,15 @@ def load_h5(h5_filename):
     cut_plane_10 = f['cut_plane_10'][:]
     cut_plane_20 = f['cut_plane_20'][:]
     cut_plane_30 = f['cut_plane_30'][:]
+    cut_plane_50 = f['cut_plane_50'][:]
 
     label = np.concatenate(
         (
             symmetry_plane[:, None, :],
             cut_plane_10[:, None, :],
             cut_plane_20[:, None, :],
-            cut_plane_30[:, None, :]
+            cut_plane_30[:, None, :],
+            cut_plane_50[:, None, :]
         ), axis=1)
 
     f.close()
